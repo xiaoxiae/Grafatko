@@ -27,3 +27,10 @@ class Node:
 
         self.x += xd
         self.y += yd
+
+
+class Graph:
+    """A class for working with physical representations of a graph."""
+
+    def __init__(self):
+        self.nodes = []

@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt, QSize, QTimer, QPoint
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame
 
-from src.graph import Node
+from src.graph import Node, Graph
 
 
 class TreeVisualizer(QWidget):
@@ -15,8 +15,8 @@ class TreeVisualizer(QWidget):
         super().__init__()
 
         # GLOBAL VARIABLES
-        # simulation variables
-        self.nodes = []
+        # graph variables
+        self.graph = Graph()
         self.selected_node = None
 
         # functions for calculating forces
@@ -57,7 +57,7 @@ class TreeVisualizer(QWidget):
 
         # (potentially) find a node that has been pressed
         pressed_node = None
-        for node in self.nodes:
+        for node in self.graph.nodes:
             if self.distance(x, y, node.x, node.y) <= node.radius:
                 pressed_node = node
                 break
@@ -92,7 +92,7 @@ class TreeVisualizer(QWidget):
 
                 # make the newly created node the currently selected node and add it to the list of nodes
                 self.selected_node = node
-                self.nodes.append(node)
+                self.graph.nodes.append(node)
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released; stops the drag."""
@@ -106,10 +106,10 @@ class TreeVisualizer(QWidget):
     def perform_simulation_iteration(self):
         """Performs one iteration of the simulation."""
         # evaluate forces that act upon the nodes
-        for i in range(len(self.nodes)):
-            n1 = self.nodes[i]
-            for j in range(i + 1, len(self.nodes)):
-                n2 = self.nodes[j]
+        for i in range(len(self.graph.nodes)):
+            n1 = self.graph.nodes[i]
+            for j in range(i + 1, len(self.graph.nodes)):
+                n2 = self.graph.nodes[j]
 
                 # calculate the distance of the nodes and their normalized vectors
                 d = self.distance(n1.x, n1.y, n2.x, n2.y)
@@ -150,12 +150,12 @@ class TreeVisualizer(QWidget):
         painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
 
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
-        for node in self.nodes:
+        for node in self.graph.nodes:
             for neighbour in node.neighbours:
                 painter.drawLine(node.x, node.y, neighbour.x, neighbour.y)
 
         # draw nodes
-        for node in self.nodes:
+        for node in self.graph.nodes:
             # selected nodes are red; others are white
             if node is self.selected_node:
                 painter.setBrush(QBrush(Qt.red, Qt.SolidPattern))
