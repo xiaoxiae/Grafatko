@@ -149,6 +149,9 @@ class TreeVisualizer(QWidget):
         painter.setPen(QPen(Qt.black, Qt.SolidLine))
         painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
 
+        # bound the area to only draw on the canvas
+        painter.setClipRect(0, 0, self.canvas.width(), self.canvas.height())
+
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
         for node in self.graph.nodes:
             for neighbour in node.neighbours:
