@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt, QSize, QTimer, QPoint
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame
 
-from src.graph import Node, Graph
+from src.graph import Graph
 
 
 class TreeVisualizer(QWidget):
@@ -57,8 +57,8 @@ class TreeVisualizer(QWidget):
 
         # (potentially) find a node that has been pressed
         pressed_node = None
-        for node in self.graph.nodes:
-            if self.distance(x, y, node.x, node.y) <= node.radius:
+        for node in self.graph.get_nodes():
+            if self.distance(x, y, node.get_x(), node.get_y()) <= node.get_radius():
                 pressed_node = node
                 break
 
@@ -67,8 +67,7 @@ class TreeVisualizer(QWidget):
             if pressed_node is not None:
                 self.selected_node = pressed_node
 
-                self.mouse_drag_offset = (x - self.selected_node.x,
-                                          y - self.selected_node.y)
+                self.mouse_drag_offset = (x - self.selected_node.get_x(), y - self.selected_node.get_y())
                 self.mouse_x = x
                 self.mouse_y = y
         else:
@@ -76,23 +75,20 @@ class TreeVisualizer(QWidget):
             if pressed_node is not None:
                 if pressed_node is not self.selected_node:
                     # if a connection does not exist between the nodes, create it; otherwise remove it
-                    if pressed_node not in self.selected_node.neighbours:
-                        pressed_node.neighbours.append(self.selected_node)
-                        self.selected_node.neighbours.append(pressed_node)
+                    if self.graph.does_vertice_exist(pressed_node, self.selected_node):
+                        self.graph.remove_vertice(pressed_node, self.selected_node)
                     else:
-                        pressed_node.neighbours.remove(self.selected_node)
-                        self.selected_node.neighbours.remove(pressed_node)
+                        self.graph.add_vertice(pressed_node, self.selected_node)
             else:
-                # create a new node, with the parent being the currently selected node
-                node = Node(x, y, self.selected_node)
+                # create a new node
+                node = self.graph.add_node(x, y)
 
-                # if there is a node selected, add the newly created node as its neighbour
+                # if a selected node exists, connect it to the newly created node
                 if self.selected_node is not None:
-                    self.selected_node.neighbours.append(node)
+                    self.graph.add_vertice(node, self.selected_node)
 
-                # make the newly created node the currently selected node and add it to the list of nodes
+                # make the newly created node the currently selected node
                 self.selected_node = node
-                self.graph.nodes.append(node)
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released; stops the drag."""
@@ -106,14 +102,14 @@ class TreeVisualizer(QWidget):
     def perform_simulation_iteration(self):
         """Performs one iteration of the simulation."""
         # evaluate forces that act upon the nodes
-        for i in range(len(self.graph.nodes)):
-            n1 = self.graph.nodes[i]
-            for j in range(i + 1, len(self.graph.nodes)):
-                n2 = self.graph.nodes[j]
+        for i in range(len(self.graph.get_nodes())):
+            n1 = self.graph.get_nodes()[i]
+            for j in range(i + 1, len(self.graph.get_nodes())):
+                n2 = self.graph.get_nodes()[j]
 
                 # calculate the distance of the nodes and their normalized vectors
-                d = self.distance(n1.x, n1.y, n2.x, n2.y)
-                nx, ny = (n2.x - n1.x) / d, (n2.y - n1.y) / d
+                d = self.distance(n1.get_x(), n1.get_y(), n2.get_x(), n2.get_y())
+                nx, ny = (n2.get_x() - n1.get_x()) / d, (n2.get_y() - n1.get_y()) / d
 
                 # the size of the repel force between the two nodes
                 fr = self.repulsion_force_function(d)
@@ -123,7 +119,7 @@ class TreeVisualizer(QWidget):
                 n2.add_force((nx * fr, ny * fr))
 
                 # if they are connected, add the leash force
-                if n1 in n2.neighbours:
+                if self.graph.does_vertice_exist(n1, n2):
                     # the size of the repel force between the two nodes
                     fa = self.attraction_force_function(d, 70)
 
@@ -134,9 +130,10 @@ class TreeVisualizer(QWidget):
             # since this node will not be visited again, evaluate the forces
             n1.evaluate_forces()
 
+        # drag the selected node
         if self.selected_node is not None and self.mouse_drag_offset is not None:
-            self.selected_node.x = self.mouse_x - self.mouse_drag_offset[0]
-            self.selected_node.y = self.mouse_y - self.mouse_drag_offset[1]
+            self.selected_node.set_x(self.mouse_x - self.mouse_drag_offset[0])
+            self.selected_node.set_y(self.mouse_y - self.mouse_drag_offset[1])
 
         self.update()
 
@@ -153,19 +150,19 @@ class TreeVisualizer(QWidget):
         painter.setClipRect(0, 0, self.canvas.width(), self.canvas.height())
 
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
-        for node in self.graph.nodes:
-            for neighbour in node.neighbours:
-                painter.drawLine(node.x, node.y, neighbour.x, neighbour.y)
+        for node in self.graph.get_nodes():
+            for neighbour in node.get_neighbours():
+                painter.drawLine(node.get_x(), node.get_y(), neighbour.get_x(), neighbour.get_y())
 
         # draw nodes
-        for node in self.graph.nodes:
+        for node in self.graph.get_nodes():
             # selected nodes are red; others are white
             if node is self.selected_node:
                 painter.setBrush(QBrush(Qt.red, Qt.SolidPattern))
             else:
                 painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
 
-            painter.drawEllipse(QPoint(node.x, node.y), node.radius, node.radius)
+            painter.drawEllipse(QPoint(node.get_x(), node.get_y()), node.get_radius(), node.get_radius())
 
     def distance(self, x1, y1, x2, y2):
         """Returns the distance of two points in space."""
