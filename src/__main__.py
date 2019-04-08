@@ -3,7 +3,7 @@ from math import sqrt
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout
 
 from src.graph import Graph
 
@@ -35,10 +35,16 @@ class TreeVisualizer(QWidget):
 
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
+        self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.oriented_checkbox_change)
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
         self.main_v_layout.addWidget(self.canvas)
+
+        self.option_h_layout = QHBoxLayout(self, margin=10)
+        self.option_h_layout.addWidget(self.oriented_checkbox)
+
+        self.main_v_layout.addLayout(self.option_h_layout)
 
         self.setLayout(self.main_v_layout)
 
@@ -49,6 +55,10 @@ class TreeVisualizer(QWidget):
 
         # start the simulation
         self.simulation_timer.start()
+
+    def oriented_checkbox_change(self):
+        """Is called when the oriented checkbox changes; sets the orientation of the graph."""
+        self.graph.set_oriented(self.oriented_checkbox.isChecked())
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
@@ -75,17 +85,17 @@ class TreeVisualizer(QWidget):
             if pressed_node is not None:
                 if pressed_node is not self.selected_node:
                     # if a connection does not exist between the nodes, create it; otherwise remove it
-                    if self.graph.does_vertice_exist(pressed_node, self.selected_node):
-                        self.graph.remove_vertice(pressed_node, self.selected_node)
+                    if self.graph.does_vertice_exist(self.selected_node, pressed_node):
+                        self.graph.remove_vertice(self.selected_node, pressed_node)
                     else:
-                        self.graph.add_vertice(pressed_node, self.selected_node)
+                        self.graph.add_vertice(self.selected_node, pressed_node)
             else:
                 # create a new node
                 node = self.graph.add_node(x, y)
 
                 # if a selected node exists, connect it to the newly created node
                 if self.selected_node is not None:
-                    self.graph.add_vertice(node, self.selected_node)
+                    self.graph.add_vertice(self.selected_node, node)
 
                 # make the newly created node the currently selected node
                 self.selected_node = node
@@ -119,7 +129,7 @@ class TreeVisualizer(QWidget):
                 n2.add_force((nx * fr, ny * fr))
 
                 # if they are connected, add the leash force
-                if self.graph.does_vertice_exist(n1, n2):
+                if self.graph.does_vertice_exist(n1, n2, ignore_orientation=True):
                     # the size of the repel force between the two nodes
                     fa = self.attraction_force_function(d, 70)
 
@@ -152,7 +162,37 @@ class TreeVisualizer(QWidget):
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
         for node in self.graph.get_nodes():
             for neighbour in node.get_neighbours():
-                painter.drawLine(node.get_x(), node.get_y(), neighbour.get_x(), neighbour.get_y())
+                x1, y1, x2, y2 = node.get_x(), node.get_y(), neighbour.get_x(), neighbour.get_y()
+
+                # if it's oriented, draw an arrow
+                if self.graph.is_oriented():
+                    # calculate the position of the head of the arrow
+                    # done by "shrinking" the distance from (x1, y1) to (x2, y2) by the radius of the node at (x2, y2)
+                    d = self.distance(x1, y1, x2, y2)
+                    ux, uy = (x2 - x1) / d, (y2 - y1) / d
+                    r = neighbour.get_radius()
+
+                    # the position of the head of the arrow
+                    xa, ya = x1 + ux * (d - r), y1 + uy * (d - r)
+
+                    # calculate the base of the arrow
+                    # this is done the same way as the previous calculation
+                    d = self.distance(x1, y1, xa, ya)
+                    ux, uy = (xa - x1) / d, (ya - y1) / d
+                    arrow_head_size = 4
+
+                    # position of the base of the arrow
+                    x, y = x1 + ux * (d - arrow_head_size * 2), y1 + uy * (d - arrow_head_size * 2)
+
+                    # the normal vectors to the unit vector of the arrow head
+                    nx, ny = -uy, ux
+
+                    painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
+                    painter.drawPolygon(QPoint(xa, ya),
+                                        QPoint(x + nx * arrow_head_size, y + ny * arrow_head_size),
+                                        QPoint(x - nx * arrow_head_size, y - ny * arrow_head_size))
+
+                painter.drawLine(x1, y1, x2, y2)
 
         # draw nodes
         for node in self.graph.get_nodes():

@@ -55,8 +55,16 @@ class Node:
 class Graph:
     """A class for working with physical representations of a graph."""
 
-    def __init__(self):
+    def __init__(self, oriented=False):
         self.nodes = []
+        self.oriented = oriented
+
+    def is_oriented(self):
+        return self.oriented
+
+    def set_oriented(self, oriented):
+        """Sets the orientation of the graph."""
+        self.oriented = oriented
 
     def get_nodes(self):
         """Returns a list of nodes of the graph."""
@@ -70,22 +78,27 @@ class Graph:
         return node
 
     def add_vertice(self, n1, n2):
-        """Adds a vertice from node n1 to node n2. Only does so if the given vertice doesn't already exist.
-        Takes O(n)."""
-        if n1 not in n2.neighbours:
-            n2.neighbours.append(n1)
-
+        """Adds a vertice from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
+        vertice doesn't already exist. Takes O(n)."""
+        # from n1 to n2
         if n2 not in n1.neighbours:
             n1.neighbours.append(n2)
 
-    def does_vertice_exist(self, n1, n2):
+        # from n2 to n1
+        if not self.oriented and n1 not in n2.neighbours:
+            n2.neighbours.append(n1)
+
+    def does_vertice_exist(self, n1, n2, ignore_orientation=False):
         """Returns True if a vertice exists between the two nodes and False otherwise."""
-        return n1 in n2.neighbours and n2 in n1.neighbours
+        return n2 in n1.neighbours or ((not self.oriented or ignore_orientation) and n1 in n2.neighbours)
 
     def remove_vertice(self, n1, n2):
-        """Removes a vertice from node n1 to node n2. Only does so if the given vertice exists. Takes O(n)."""
-        if n1 in n2.neighbours:
-            n2.neighbours.remove(n1)
-
+        """Removes a vertice from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
+        vertice exists. Takes O(n)."""
+        # from n1 to n2
         if n2 in n1.neighbours:
             n1.neighbours.remove(n2)
+
+        # from n2 to n1
+        if not self.oriented and n1 in n2.neighbours:
+            n2.neighbours.remove(n1)
