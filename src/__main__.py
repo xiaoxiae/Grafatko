@@ -5,7 +5,7 @@ from PyQt5.QtCore import Qt, QSize, QTimer, QPoint
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout
 
-from src.graph import Graph
+from graph import Graph
 
 
 class TreeVisualizer(QWidget):
