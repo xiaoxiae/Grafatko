@@ -79,14 +79,20 @@ class TreeVisualizer(QWidget):
                 pressed_node = node
                 break
 
-        # select/move node on left click; create new node/make a new connection on right click
+        # select/move node on left click
+        # create new node/make a new connection on right click
         if event.button() == Qt.LeftButton:
             if pressed_node is not None:
-                self.selected_node = pressed_node
+                # select and move the node if it isn't already selected; else de-select it
+                if pressed_node is not self.selected_node:
+                    self.selected_node = pressed_node
 
-                self.mouse_drag_offset = (x - self.selected_node.get_x(), y - self.selected_node.get_y())
-                self.mouse_x = x
-                self.mouse_y = y
+                    self.mouse_drag_offset = (x - self.selected_node.get_x(), y - self.selected_node.get_y())
+                    self.mouse_x = x
+                    self.mouse_y = y
+                else:
+                    self.selected_node = None
+
         else:
             # either make/remove a connection, or create a new node
             if pressed_node is not None:
