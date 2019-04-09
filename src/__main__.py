@@ -3,7 +3,7 @@ from math import sqrt
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit
 
 from graph import Graph
 
@@ -37,6 +37,8 @@ class TreeVisualizer(QWidget):
         self.selected_node_color = Qt.red
         self.regular_node_color = Qt.white
 
+        self.word_limit = 10  # limit the displayed length of words for each node
+
         # UI variables
         self.font_family = "Fira Code"
         self.font_size = 18
@@ -47,7 +49,10 @@ class TreeVisualizer(QWidget):
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
         self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.oriented_checkbox_change)
-        self.labels_checkbox = QCheckBox(text="labels")
+
+        self.labels_checkbox = QCheckBox(text="labels", clicked=self.labels_checkbox_change)
+        self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
+                                          textChanged=self.labels_line_edit_change)
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
@@ -56,6 +61,7 @@ class TreeVisualizer(QWidget):
         self.option_h_layout = QHBoxLayout(self, margin=10)
         self.option_h_layout.addWidget(self.oriented_checkbox)
         self.option_h_layout.addWidget(self.labels_checkbox)
+        self.option_h_layout.addWidget(self.labels_line_edit)
 
         self.main_v_layout.addLayout(self.option_h_layout)
 
@@ -73,6 +79,29 @@ class TreeVisualizer(QWidget):
         """Is called when the oriented checkbox changes; sets the orientation of the graph."""
         self.graph.set_oriented(self.oriented_checkbox.isChecked())
 
+    def labels_checkbox_change(self):
+        """Is called when the label checkbox changes; enable/disable the labels line edit."""
+        self.labels_line_edit.setEnabled(self.labels_checkbox.isChecked())
+
+    def labels_line_edit_change(self, text):
+        """Is called when the labels line edit changes; changes the name of the currently selected node. If the name
+        exceeds the maximum displayed length of a node, turns the labels line edit red."""
+        if self.selected_node is not None:
+            self.selected_node.set_name(text)
+
+        # set the background of the line edit color, according to whether the word is of appropriate length
+        palette = self.labels_line_edit.palette()
+        if len(text) > self.word_limit:
+            palette.setColor(self.labels_line_edit.backgroundRole(), Qt.red)
+        else:
+            palette.setColor(self.labels_line_edit.backgroundRole(), Qt.white)
+        self.labels_line_edit.setPalette(palette)
+
+    def select_node(self, node):
+        """Sets the selected node to the specified node and changes the text in labels line edit to its name."""
+        self.selected_node = node
+        self.labels_line_edit.setText(node.get_name())
+
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
         mouse_coordinates = self.get_mouse_coordinates(event)
@@ -83,7 +112,6 @@ class TreeVisualizer(QWidget):
 
         x = mouse_coordinates[0]
         y = mouse_coordinates[1]
-
 
         # (potentially) find a node that has been pressed
         pressed_node = None
@@ -97,7 +125,7 @@ class TreeVisualizer(QWidget):
         if event.button() == Qt.LeftButton:
             if pressed_node is not None:
                 # select and move the node if it isn't already selected; else de-select it
-                self.selected_node = pressed_node
+                self.select_node(pressed_node)
 
                 self.mouse_drag_offset = (x - self.selected_node.get_x(), y - self.selected_node.get_y())
                 self.mouse_x = x
@@ -121,7 +149,7 @@ class TreeVisualizer(QWidget):
                     self.graph.add_vertice(self.selected_node, node)
 
                 # make the newly created node the currently selected node
-                self.selected_node = node
+                self.select_node(node)
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released; stops the drag."""
@@ -253,10 +281,12 @@ class TreeVisualizer(QWidget):
 
             # if the label checkbox is checked, draw the names
             if self.labels_checkbox.isChecked():
-                name = node.get_name()
+                name = node.get_name()[:self.word_limit]
 
-                # scale font down, depending on the length of the name of the node
-                painter.setFont(QFont(self.font_family, self.font_size / len(name)))
+                # only draw the name, if it has characters
+                if len(name) != 0:
+                    # scale font down, depending on the length of the name of the node
+                    painter.setFont(QFont(self.font_family, self.font_size / len(name)))
 
                 # draw the node name
                 painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, name)

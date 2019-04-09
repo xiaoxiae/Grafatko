@@ -44,6 +44,10 @@ class Node:
         """Sets the y coordinate of the node to the specified value."""
         self.y = y
 
+    def set_name(self, name):
+        """Sets the name of the node to the specified value."""
+        self.name = name
+
     def add_force(self, force):
         """Adds a force that is acting upon the node to the force list."""
         self.forces.append(force)
