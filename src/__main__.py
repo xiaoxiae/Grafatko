@@ -3,7 +3,8 @@ from math import sqrt
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, QPushButton, \
+    QMessageBox
 
 from graph import Graph
 
@@ -48,11 +49,14 @@ class TreeVisualizer(QWidget):
 
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
+
         self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.oriented_checkbox_change)
 
         self.labels_checkbox = QCheckBox(text="labels", clicked=self.labels_checkbox_change)
         self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
                                           textChanged=self.labels_line_edit_change)
+
+        self.help_button = QPushButton(text="?", clicked=self.help_button_clicked)
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
@@ -62,18 +66,36 @@ class TreeVisualizer(QWidget):
         self.option_h_layout.addWidget(self.oriented_checkbox)
         self.option_h_layout.addWidget(self.labels_checkbox)
         self.option_h_layout.addWidget(self.labels_line_edit)
+        self.option_h_layout.addWidget(self.help_button)
 
         self.main_v_layout.addLayout(self.option_h_layout)
 
         self.setLayout(self.main_v_layout)
 
         # WINDOW SETTINGS
-        self.setWindowTitle('Tree Visualizer in PyQt5!')
+        self.setWindowTitle('Graph Visualizer in PyQt5!')
         self.setFont(QFont(self.font_family, self.font_size))
         self.show()
 
         # start the simulation
         self.simulation_timer.start()
+
+    def help_button_clicked(self):
+        """Is called when the help button is clicked; displays basic information about the application."""
+        message = """
+            <p>Welcome to <strong>Graph Visualizer</strong>.</p>
+            <p>The app aims to help with creating, visualizing and exporting graphs. 
+            It is powered by PyQt5 &ndash; a set of Python bindings for the C++ library Qt.</p>
+            <p>See the app's <a href="https://github.com/xiaoxiae/GraphVisualizer">GitHub repository</a> for more.</p>
+            <hr />
+            <p>The controls are as follows:</p>
+            <ul>
+            <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
+            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node</li>
+            </ul>
+        """
+
+        QMessageBox.information(self, "About", message)
 
     def oriented_checkbox_change(self):
         """Is called when the oriented checkbox changes; sets the orientation of the graph."""
@@ -288,8 +310,8 @@ class TreeVisualizer(QWidget):
                     # scale font down, depending on the length of the name of the node
                     painter.setFont(QFont(self.font_family, self.font_size / len(name)))
 
-                # draw the node name
-                painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, name)
+                    # draw the node name
+                    painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, name)
 
     def distance(self, x1, y1, x2, y2):
         """Returns the distance of two points in space."""
