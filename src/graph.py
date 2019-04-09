@@ -1,13 +1,17 @@
 class Node:
     """A class for working with physical representations of nodes in a graph."""
 
-    def __init__(self, x, y, radius):
+    def __init__(self, x, y, radius, name=None):
         """Initializes a new node."""
-        # coordinates of the graph on the board
+        # coordinates and radius of the graph on a plane
         self.x, self.y = x, y
-
-        self.neighbours = []
         self.radius = radius
+
+        # the name that will be displayed
+        self.name = name
+
+        # neighbours of the node
+        self.neighbours = []
 
         # the list of forces acting on the node
         self.forces = []
@@ -27,6 +31,10 @@ class Node:
     def get_neighbours(self):
         """Returns the radius of the node."""
         return self.neighbours
+
+    def get_name(self):
+        """Returns the name of the node."""
+        return self.name
 
     def set_x(self, x):
         """Sets the x coordinate of the node to the specified value."""
@@ -70,9 +78,21 @@ class Graph:
         """Returns a list of nodes of the graph."""
         return self.nodes
 
+    def __len__(self):
+        """Define a length of the graph object as the number of nodes."""
+        return len(self.get_nodes())
+
+    def get_name(self):
+        """Returns the name, based on the number of nodes in the tree in the form of A, B, C, ..., AA, AB, AC ...
+        Note that the name is not meant to be an unique identifier!"""
+        n = self.__len__()
+        name = "A" * (n // 26) + chr(65 + n % 26)
+
+        return name
+
     def add_node(self, x, y, radius):
         """Adds a new node to the graph and returns it."""
-        node = Node(x, y, radius)
+        node = Node(x, y, radius, self.get_name())
         self.nodes.append(node)
 
         return node

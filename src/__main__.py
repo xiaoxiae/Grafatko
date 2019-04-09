@@ -1,7 +1,7 @@
 import sys
 from math import sqrt
 
-from PyQt5.QtCore import Qt, QSize, QTimer, QPoint
+from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout
 
@@ -37,12 +37,17 @@ class TreeVisualizer(QWidget):
         self.selected_node_color = Qt.red
         self.regular_node_color = Qt.white
 
+        # UI variables
+        self.font_family = "Fira Code"
+        self.font_size = 18
+
         # TIMERS
         self.simulation_timer = QTimer(interval=16, timeout=self.perform_simulation_iteration)
 
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
         self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.oriented_checkbox_change)
+        self.labels_checkbox = QCheckBox(text="labels")
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
@@ -50,6 +55,7 @@ class TreeVisualizer(QWidget):
 
         self.option_h_layout = QHBoxLayout(self, margin=10)
         self.option_h_layout.addWidget(self.oriented_checkbox)
+        self.option_h_layout.addWidget(self.labels_checkbox)
 
         self.main_v_layout.addLayout(self.option_h_layout)
 
@@ -57,7 +63,7 @@ class TreeVisualizer(QWidget):
 
         # WINDOW SETTINGS
         self.setWindowTitle('Tree Visualizer in PyQt5!')
-        self.setFont(QFont("Fira Code", 16))
+        self.setFont(QFont(self.font_family, self.font_size))
         self.show()
 
         # start the simulation
@@ -211,7 +217,20 @@ class TreeVisualizer(QWidget):
             else:
                 painter.setBrush(QBrush(self.regular_node_color, Qt.SolidPattern))
 
-            painter.drawEllipse(QPoint(node.get_x(), node.get_y()), node.get_radius(), node.get_radius())
+            # node information
+            x, y, r = node.get_x(), node.get_y(), node.get_radius()
+
+            painter.drawEllipse(QPoint(x, y), r, r)
+
+            # if the label checkbox is checked, draw the names
+            if self.labels_checkbox.isChecked():
+                name = node.get_name()
+
+                # scale font down, depending on the length of the name of the node
+                painter.setFont(QFont(self.font_family, self.font_size / len(name)))
+
+                # draw the node name
+                painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, name)
 
     def distance(self, x1, y1, x2, y2):
         """Returns the distance of two points in space."""
