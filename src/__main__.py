@@ -75,8 +75,15 @@ class TreeVisualizer(QWidget):
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
-        x = event.pos().x()
-        y = event.pos().y()
+        mouse_coordinates = self.get_mouse_coordinates(event)
+
+        # if we are not on canvas, don't do anything
+        if mouse_coordinates is None:
+            return
+
+        x = mouse_coordinates[0]
+        y = mouse_coordinates[1]
+
 
         # (potentially) find a node that has been pressed
         pressed_node = None
@@ -121,9 +128,28 @@ class TreeVisualizer(QWidget):
         self.mouse_drag_offset = None
 
     def mouseMoveEvent(self, event):
-        """Is called when the mouse is moved across the window; updates mouse coordiantes."""
-        self.mouse_x = event.pos().x()
-        self.mouse_y = event.pos().y()
+        """Is called when the mouse is moved across the window; updates mouse coordinates."""
+        mouse_coordinates = self.get_mouse_coordinates(event, scale_down=True)
+
+        self.mouse_x = mouse_coordinates[0]
+        self.mouse_y = mouse_coordinates[1]
+
+    def get_mouse_coordinates(self, event, scale_down=False):
+        """Returns mouse coordinates if they are within the canvas and None if they are not. If scale_down is True, the
+        function will scale down the coordinates to be within the canvas (useful for dragging) and return them."""
+        x = event.pos().x()
+        y = event.pos().y()
+
+        # whether the coordinate components are on canvas
+        x_on_canvas = 0 <= x <= self.canvas.width()
+        y_on_canvas = 0 <= y <= self.canvas.height()
+
+        # return scaled-down coordinates if scale_down is True
+        if scale_down:
+            return (x if x_on_canvas else 0 if x <= 0 else self.canvas.width(),
+                    y if y_on_canvas else 0 if y <= 0 else self.canvas.height())
+        else:
+            return (x, y) if x_on_canvas and y_on_canvas else None
 
     def perform_simulation_iteration(self):
         """Performs one iteration of the simulation."""
