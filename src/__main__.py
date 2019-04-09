@@ -21,7 +21,7 @@ class TreeVisualizer(QWidget):
 
         # functions for calculating forces
         self.repulsion_force_function = lambda x: 1 / x * 10
-        self.attraction_force_function = lambda x, d: 0 if x <= d else -(x - d) / 10
+        self.attraction_force_function = lambda x, d=80: 0 if x <= d else -(x - d) / 10
 
         # offset of the mouse from the position of the currently dragged node
         self.mouse_drag_offset = None
@@ -29,6 +29,13 @@ class TreeVisualizer(QWidget):
         # position of the mouse; is updated when the mouse moves
         self.mouse_x = -1
         self.mouse_y = -1
+
+        # variables for visualizing the graph
+        self.node_radius = 20
+        self.arrowhead_size = 4
+
+        self.selected_node_color = Qt.red
+        self.regular_node_color = Qt.white
 
         # TIMERS
         self.simulation_timer = QTimer(interval=16, timeout=self.perform_simulation_iteration)
@@ -91,7 +98,7 @@ class TreeVisualizer(QWidget):
                         self.graph.add_vertice(self.selected_node, pressed_node)
             else:
                 # create a new node
-                node = self.graph.add_node(x, y)
+                node = self.graph.add_node(x, y, self.node_radius)
 
                 # if a selected node exists, connect it to the newly created node
                 if self.selected_node is not None:
@@ -131,7 +138,7 @@ class TreeVisualizer(QWidget):
                 # if they are connected, add the leash force
                 if self.graph.does_vertice_exist(n1, n2, ignore_orientation=True):
                     # the size of the repel force between the two nodes
-                    fa = self.attraction_force_function(d, 70)
+                    fa = self.attraction_force_function(d)
 
                     # add the repel force to each of the nodes
                     n1.add_force((-nx * fa, -ny * fa))
@@ -179,18 +186,17 @@ class TreeVisualizer(QWidget):
                     # this is done the same way as the previous calculation
                     d = self.distance(x1, y1, xa, ya)
                     ux, uy = (xa - x1) / d, (ya - y1) / d
-                    arrow_head_size = 4
 
                     # position of the base of the arrow
-                    x, y = x1 + ux * (d - arrow_head_size * 2), y1 + uy * (d - arrow_head_size * 2)
+                    x, y = x1 + ux * (d - self.arrowhead_size * 2), y1 + uy * (d - self.arrowhead_size * 2)
 
                     # the normal vectors to the unit vector of the arrow head
                     nx, ny = -uy, ux
 
                     painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
                     painter.drawPolygon(QPoint(xa, ya),
-                                        QPoint(x + nx * arrow_head_size, y + ny * arrow_head_size),
-                                        QPoint(x - nx * arrow_head_size, y - ny * arrow_head_size))
+                                        QPoint(x + nx * self.arrowhead_size, y + ny * self.arrowhead_size),
+                                        QPoint(x - nx * self.arrowhead_size, y - ny * self.arrowhead_size))
 
                 painter.drawLine(x1, y1, x2, y2)
 
@@ -198,9 +204,9 @@ class TreeVisualizer(QWidget):
         for node in self.graph.get_nodes():
             # selected nodes are red; others are white
             if node is self.selected_node:
-                painter.setBrush(QBrush(Qt.red, Qt.SolidPattern))
+                painter.setBrush(QBrush(self.selected_node_color, Qt.SolidPattern))
             else:
-                painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
+                painter.setBrush(QBrush(self.regular_node_color, Qt.SolidPattern))
 
             painter.drawEllipse(QPoint(node.get_x(), node.get_y()), node.get_radius(), node.get_radius())
 

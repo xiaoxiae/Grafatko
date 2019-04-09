@@ -1,7 +1,7 @@
 class Node:
     """A class for working with physical representations of nodes in a graph."""
 
-    def __init__(self, x, y, radius=20):
+    def __init__(self, x, y, radius):
         """Initializes a new node."""
         # coordinates of the graph on the board
         self.x, self.y = x, y
@@ -70,9 +70,9 @@ class Graph:
         """Returns a list of nodes of the graph."""
         return self.nodes
 
-    def add_node(self, x, y):
+    def add_node(self, x, y, radius):
         """Adds a new node to the graph and returns it."""
-        node = Node(x, y)
+        node = Node(x, y, radius)
         self.nodes.append(node)
 
         return node
