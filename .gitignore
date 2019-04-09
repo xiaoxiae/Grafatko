@@ -1,2 +1,5 @@
-# ignore PyCharm configuration files
+# PyCharm configuration files
 \.idea/
+
+# Python cache files
+src/__pycache__/
