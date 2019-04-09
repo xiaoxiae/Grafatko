@@ -175,6 +175,9 @@ class TreeVisualizer(QWidget):
         # bound the area to only draw on the canvas
         painter.setClipRect(0, 0, self.canvas.width(), self.canvas.height())
 
+        # draw the background
+        painter.drawRect(0, 0, self.canvas.width(), self.canvas.height())
+
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
         for node in self.graph.get_nodes():
             for neighbour in node.get_neighbours():
