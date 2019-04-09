@@ -29,7 +29,7 @@ class Node:
         return self.radius
 
     def get_neighbours(self):
-        """Returns the radius of the node."""
+        """Returns the neighbours of the node."""
         return self.neighbours
 
     def get_name(self):
@@ -72,6 +72,7 @@ class Graph:
         self.oriented = oriented
 
     def is_oriented(self):
+        """Returns True if the graph is oriented and False otherwise."""
         return self.oriented
 
     def set_oriented(self, oriented):
