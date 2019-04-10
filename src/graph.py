@@ -1,14 +1,14 @@
 class Node:
     """A class for working with physical representations of nodes in a graph."""
 
-    def __init__(self, x, y, radius, name=None):
+    def __init__(self, x, y, radius, label=None):
         """Initializes a new node."""
         # coordinates and radius of the graph on a plane
         self.x, self.y = x, y
         self.radius = radius
 
-        # the name that will be displayed
-        self.name = name
+        # the label that will be displayed
+        self.label = label
 
         # neighbours of the node
         self.neighbours = []
@@ -32,9 +32,9 @@ class Node:
         """Returns the neighbours of the node."""
         return self.neighbours
 
-    def get_name(self):
-        """Returns the name of the node."""
-        return self.name
+    def get_label(self):
+        """Returns the label of the node."""
+        return self.label
 
     def set_x(self, x):
         """Sets the x coordinate of the node to the specified value."""
@@ -44,9 +44,9 @@ class Node:
         """Sets the y coordinate of the node to the specified value."""
         self.y = y
 
-    def set_name(self, name):
-        """Sets the name of the node to the specified value."""
-        self.name = name
+    def set_label(self, label):
+        """Sets the label of the node to the specified value."""
+        self.label = label
 
     def add_force(self, force):
         """Adds a force that is acting upon the node to the force list."""
@@ -87,17 +87,17 @@ class Graph:
         """Define a length of the graph object as the number of nodes."""
         return len(self.get_nodes())
 
-    def get_name(self):
-        """Returns the name, based on the number of nodes in the tree in the form of A, B, C, ..., AA, AB, AC ...
-        Note that the name is not meant to be an unique identifier!"""
+    def generate_label(self):
+        """Returns a node label, based on the number of nodes in the tree in the form of A, B, C, ..., AA, AB, AC ...
+        Note that the label is not meant to be an unique identifier!"""
         n = self.__len__()
-        name = "A" * (n // 26) + chr(65 + n % 26)
+        label = "A" * (n // 26) + chr(65 + n % 26)
 
-        return name
+        return label
 
     def add_node(self, x, y, radius):
         """Adds a new node to the graph and returns it."""
-        node = Node(x, y, radius, self.get_name())
+        node = Node(x, y, radius, self.generate_label())
         self.nodes.append(node)
 
         return node

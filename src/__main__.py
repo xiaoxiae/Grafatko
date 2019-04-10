@@ -50,13 +50,13 @@ class TreeVisualizer(QWidget):
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
 
-        self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.oriented_checkbox_change)
+        self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.set_graph_orientation)
 
-        self.labels_checkbox = QCheckBox(text="labels", clicked=self.labels_checkbox_change)
+        self.labels_checkbox = QCheckBox(text="labels", clicked=self.enable_node_label_editing)
         self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
-                                          textChanged=self.labels_line_edit_change)
+                                          textChanged=self.update_selected_node_label)
 
-        self.help_button = QPushButton(text="?", clicked=self.help_button_clicked)
+        self.help_button = QPushButton(text="?", clicked=self.show_help)
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
@@ -80,7 +80,7 @@ class TreeVisualizer(QWidget):
         # start the simulation
         self.simulation_timer.start()
 
-    def help_button_clicked(self):
+    def show_help(self):
         """Is called when the help button is clicked; displays basic information about the application."""
         message = """
             <p>Welcome to <strong>Graph Visualizer</strong>.</p>
@@ -97,19 +97,19 @@ class TreeVisualizer(QWidget):
 
         QMessageBox.information(self, "About", message)
 
-    def oriented_checkbox_change(self):
+    def set_graph_orientation(self):
         """Is called when the oriented checkbox changes; sets the orientation of the graph."""
         self.graph.set_oriented(self.oriented_checkbox.isChecked())
 
-    def labels_checkbox_change(self):
+    def enable_node_label_editing(self):
         """Is called when the label checkbox changes; enable/disable the labels line edit."""
         self.labels_line_edit.setEnabled(self.labels_checkbox.isChecked())
 
-    def labels_line_edit_change(self, text):
-        """Is called when the labels line edit changes; changes the name of the currently selected node. If the name
+    def update_selected_node_label(self, text):
+        """Is called when the labels line edit changes; changes the label of the currently selected node. If the label
         exceeds the maximum displayed length of a node, turns the labels line edit red."""
         if self.selected_node is not None:
-            self.selected_node.set_name(text)
+            self.selected_node.set_label(text)
 
         # set the background of the line edit color, according to whether the word is of appropriate length
         palette = self.labels_line_edit.palette()
@@ -120,9 +120,9 @@ class TreeVisualizer(QWidget):
         self.labels_line_edit.setPalette(palette)
 
     def select_node(self, node):
-        """Sets the selected node to the specified node and changes the text in labels line edit to its name."""
+        """Sets the selected node to the specified node and changes the text in labels line edit to its label."""
         self.selected_node = node
-        self.labels_line_edit.setText(node.get_name())
+        self.labels_line_edit.setText(node.get_label())
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
@@ -301,17 +301,17 @@ class TreeVisualizer(QWidget):
 
             painter.drawEllipse(QPoint(x, y), r, r)
 
-            # if the label checkbox is checked, draw the names
+            # if the label checkbox is checked, draw its label
             if self.labels_checkbox.isChecked():
-                name = node.get_name()[:self.word_limit]
+                label = node.get_label()[:self.word_limit]
 
-                # only draw the name, if it has characters
-                if len(name) != 0:
-                    # scale font down, depending on the length of the name of the node
-                    painter.setFont(QFont(self.font_family, self.font_size / len(name)))
+                # only draw the label, if it has characters
+                if len(label) != 0:
+                    # scale font down, depending on the length of the label of the node
+                    painter.setFont(QFont(self.font_family, self.font_size / len(label)))
 
-                    # draw the node name
-                    painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, name)
+                    # draw the node label
+                    painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
 
     def distance(self, x1, y1, x2, y2):
         """Returns the distance of two points in space."""
