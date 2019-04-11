@@ -152,6 +152,8 @@ class TreeVisualizer(QWidget):
                 self.mouse_drag_offset = (x - self.selected_node.get_x(), y - self.selected_node.get_y())
                 self.mouse_x = x
                 self.mouse_y = y
+            else:
+                self.selected_node = None
 
         else:
             # either make/remove a connection, or create a new node
