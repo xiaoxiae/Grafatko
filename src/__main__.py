@@ -211,25 +211,25 @@ class TreeVisualizer(QWidget):
             for j in range(i + 1, len(self.graph.get_nodes())):
                 n2 = self.graph.get_nodes()[j]
 
-                # calculate the distance of the nodes and their normalized vectors
+                # calculate the distance of the nodes and a unit vector from the first to the second
                 d = self.distance(n1.get_x(), n1.get_y(), n2.get_x(), n2.get_y())
-                nx, ny = (n2.get_x() - n1.get_x()) / d, (n2.get_y() - n1.get_y()) / d
+                ux, uy = (n2.get_x() - n1.get_x()) / d, (n2.get_y() - n1.get_y()) / d
 
                 # the size of the repel force between the two nodes
                 fr = self.repulsion_force_function(d)
 
-                # add the repel force to each of the nodes
-                n1.add_force((-nx * fr, -ny * fr))
-                n2.add_force((nx * fr, ny * fr))
+                # add a repel force to each of the nodes, in the opposite directions
+                n1.add_force((-ux * fr, -uy * fr))
+                n2.add_force((ux * fr, uy * fr))
 
-                # if they are connected, add the leash force
+                # if they are connected, add the leash force (regardless of whether the graph is oriented or not)
                 if self.graph.does_vertice_exist(n1, n2, ignore_orientation=True):
-                    # the size of the repel force between the two nodes
+                    # the size of the attraction force between the two nodes
                     fa = self.attraction_force_function(d)
 
-                    # add the repel force to each of the nodes
-                    n1.add_force((-nx * fa, -ny * fa))
-                    n2.add_force((nx * fa, ny * fa))
+                    # add the repel force to each of the nodes, in the opposite directionss
+                    n1.add_force((-ux * fa, -uy * fa))
+                    n2.add_force((ux * fa, uy * fa))
 
             # since this node will not be visited again, evaluate the forces
             n1.evaluate_forces()
