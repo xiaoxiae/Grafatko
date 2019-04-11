@@ -20,10 +20,6 @@ class TreeVisualizer(QWidget):
         self.graph = Graph()
         self.selected_node = None
 
-        # functions for calculating forces
-        self.repulsion_force_function = lambda x: 1 / x * 10
-        self.attraction_force_function = lambda x, d=80: 0 if x <= d else -(x - d) / 10
-
         # offset of the mouse from the position of the currently dragged node
         self.mouse_drag_offset = None
 
@@ -79,6 +75,14 @@ class TreeVisualizer(QWidget):
 
         # start the simulation
         self.simulation_timer.start()
+
+    def repulsion_force(self, distance):
+        """Calculates the strength of the repulsion force at the specified distance."""
+        return 1 / distance * 10
+
+    def attraction_force(self, distance, leash_length=80):
+        """Calculates the strength of the attraction force at the specified distance and leash length."""
+        return -(distance - leash_length) / 10
 
     def show_help(self):
         """Is called when the help button is clicked; displays basic information about the application."""
@@ -216,7 +220,7 @@ class TreeVisualizer(QWidget):
                 ux, uy = (n2.get_x() - n1.get_x()) / d, (n2.get_y() - n1.get_y()) / d
 
                 # the size of the repel force between the two nodes
-                fr = self.repulsion_force_function(d)
+                fr = self.repulsion_force(d)
 
                 # add a repel force to each of the nodes, in the opposite directions
                 n1.add_force((-ux * fr, -uy * fr))
@@ -225,7 +229,7 @@ class TreeVisualizer(QWidget):
                 # if they are connected, add the leash force (regardless of whether the graph is oriented or not)
                 if self.graph.does_vertice_exist(n1, n2, ignore_orientation=True):
                     # the size of the attraction force between the two nodes
-                    fa = self.attraction_force_function(d)
+                    fa = self.attraction_force(d)
 
                     # add the repel force to each of the nodes, in the opposite directionss
                     n1.add_force((-ux * fa, -uy * fa))
