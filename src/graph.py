@@ -95,9 +95,9 @@ class Graph:
 
         return label
 
-    def add_node(self, x, y, radius):
+    def add_node(self, x, y, radius, name=None):
         """Adds a new node to the graph and returns it."""
-        node = Node(x, y, radius, self.generate_label())
+        node = Node(x, y, radius, name if name is not None else self.generate_label())
         self.nodes.append(node)
 
         return node
