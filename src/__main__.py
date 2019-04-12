@@ -164,17 +164,17 @@ class TreeVisualizer(QWidget):
             if pressed_node is not None:
                 if pressed_node is not self.selected_node:
                     # if a connection does not exist between the nodes, create it; otherwise remove it
-                    if self.graph.does_vertice_exist(self.selected_node, pressed_node):
-                        self.graph.remove_vertice(self.selected_node, pressed_node)
+                    if self.graph.does_vertex_exist(self.selected_node, pressed_node):
+                        self.graph.remove_vertex(self.selected_node, pressed_node)
                     else:
-                        self.graph.add_vertice(self.selected_node, pressed_node)
+                        self.graph.add_vertex(self.selected_node, pressed_node)
             else:
                 # create a new node
                 node = self.graph.add_node(x, y, self.node_radius)
 
                 # if a selected node exists, connect it to the newly created node
                 if self.selected_node is not None:
-                    self.graph.add_vertice(self.selected_node, node)
+                    self.graph.add_vertex(self.selected_node, node)
 
                 # make the newly created node the currently selected node
                 self.select_node(node)
@@ -227,7 +227,7 @@ class TreeVisualizer(QWidget):
                 n2.add_force((ux * fr, uy * fr))
 
                 # if they are connected, add the leash force (regardless of whether the graph is oriented or not)
-                if self.graph.does_vertice_exist(n1, n2, ignore_orientation=True):
+                if self.graph.does_vertex_exist(n1, n2, ignore_orientation=True):
                     # the size of the attraction force between the two nodes
                     fa = self.attraction_force(d)
 
