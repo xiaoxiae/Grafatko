@@ -162,7 +162,7 @@ class TreeVisualizer(QWidget):
         else:
             # either make/remove a connection, or create a new node
             if pressed_node is not None:
-                if pressed_node is not self.selected_node:
+                if self.selected_node is not None and pressed_node is not self.selected_node:
                     # if a connection does not exist between the nodes, create it; otherwise remove it
                     if self.graph.does_vertex_exist(self.selected_node, pressed_node):
                         self.graph.remove_vertex(self.selected_node, pressed_node)
