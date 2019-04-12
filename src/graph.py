@@ -102,6 +102,18 @@ class Graph:
 
         return node
 
+    def delete_node(self, node_to_remove):
+        """Deletes a node and all of the vertices that point to it from the graph. Takes O(number of vertices)"""
+        # remove the actual node
+        self.get_nodes().remove(node_to_remove)
+
+        # remove all of its vertices
+        for node in self.get_nodes():
+            try:
+                node.get_neighbours().remove(node_to_remove)
+            except ValueError:
+                pass
+
     def add_vertex(self, n1, n2):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
         vertex doesn't already exist. Takes O(n)."""

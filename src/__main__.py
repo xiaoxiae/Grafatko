@@ -128,6 +128,13 @@ class TreeVisualizer(QWidget):
         self.selected_node = node
         self.labels_line_edit.setText(node.get_label())
 
+    def keyPressEvent(self, event):
+        """Is called when a key is pressed on the keyboard; deletes vertices."""
+        if event.key() == Qt.Key_Delete:
+            if self.selected_node is not None:
+                self.graph.delete_node(self.selected_node)
+                self.selected_node = None
+
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
         mouse_coordinates = self.get_mouse_coordinates(event)
@@ -135,6 +142,9 @@ class TreeVisualizer(QWidget):
         # if we are not on canvas, don't do anything
         if mouse_coordinates is None:
             return
+
+        # sets the focus to the entire window, for the keypresses to register
+        self.setFocus()
 
         x = mouse_coordinates[0]
         y = mouse_coordinates[1]
