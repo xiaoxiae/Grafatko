@@ -255,6 +255,11 @@ class TreeVisualizer(QWidget):
 
                 # calculate the distance of the nodes and a unit vector from the first to the second
                 d = self.distance(n1.get_x(), n1.get_y(), n2.get_x(), n2.get_y())
+
+                # if the nodes are right on top of each other, the force can't be calculated
+                if d == 0:
+                    continue
+
                 ux, uy = (n2.get_x() - n1.get_x()) / d, (n2.get_y() - n1.get_y()) / d
 
                 # the size of the repel force between the two nodes
