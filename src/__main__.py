@@ -1,5 +1,5 @@
 import sys
-from math import sqrt
+from math import sqrt, cos, sin, radians
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
@@ -39,6 +39,9 @@ class TreeVisualizer(QWidget):
         # UI variables
         self.font_family = "Fira Code"
         self.font_size = 18
+
+        # for moving the nodes
+        self.node_rotation_angle = 20
 
         # TIMERS
         self.simulation_timer = QTimer(interval=16, timeout=self.perform_simulation_iteration)
@@ -94,7 +97,8 @@ class TreeVisualizer(QWidget):
             <p>The controls are as follows:</p>
             <ul>
             <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
-            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node<br /></li>
+            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node</li>
+            <li><em>Shift + Mouse Wheel</em> &ndash; rotate all of the nodes around the currently selected node<br /></li>
             <li><em>Delete</em> &ndash; deletes the currently selected node</li>
             </ul>
             <hr />
@@ -202,6 +206,27 @@ class TreeVisualizer(QWidget):
 
         self.mouse_x = mouse_coordinates[0]
         self.mouse_y = mouse_coordinates[1]
+
+    def wheelEvent(self, event):
+        """Is called when the mouse wheel is moved. Controls the zoom."""
+        # rotate nodes around when shift is pressed
+        if QApplication.keyboardModifiers() == Qt.ShiftModifier and self.selected_node is not None:
+            angle = self.node_rotation_angle if event.angleDelta().y() > 0 else -self.node_rotation_angle
+
+            self.rotate_nodes_around(self.selected_node.get_x(), self.selected_node.get_y(), angle)
+
+    def rotate_nodes_around(self, x, y, angle):
+        """Rotates coordinates of all of the points by a certain angle (in degrees) around the specified point."""
+        angle = radians(angle)
+
+        for node in self.graph.get_nodes():
+            if node is not self.selected_node:
+                # translate the coordinates to origin
+                node_x, node_y = node.get_x() - x, node.get_y() - y
+
+                # rotate and translate the coordinates of the node
+                node.set_x(node_x * cos(angle) - node_y * sin(angle) + x)
+                node.set_y(node_x * sin(angle) + node_y * cos(angle) + y)
 
     def get_mouse_coordinates(self, event, scale_down=False):
         """Returns mouse coordinates if they are within the canvas and None if they are not. If scale_down is True, the
