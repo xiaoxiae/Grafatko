@@ -90,13 +90,16 @@ class TreeVisualizer(QWidget):
             <p>Welcome to <strong>Graph Visualizer</strong>.</p>
             <p>The app aims to help with creating, visualizing and exporting graphs. 
             It is powered by PyQt5 &ndash; a set of Python bindings for the C++ library Qt.</p>
-            <p>See the app's <a href="https://github.com/xiaoxiae/GraphVisualizer">GitHub repository</a> for more.</p>
             <hr />
             <p>The controls are as follows:</p>
             <ul>
             <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
-            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node</li>
+            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node<br /></li>
+            <li><em>Delete</em> &ndash; deletes the currently selected node</li>
             </ul>
+            <hr />
+            <p>If you spot an issue, or would like to check out the source code, see the app's 
+            <a href="https://github.com/xiaoxiae/GraphVisualizer">GitHub repository</a>.</p>
         """
 
         QMessageBox.information(self, "About", message)
