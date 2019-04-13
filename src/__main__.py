@@ -40,6 +40,9 @@ class TreeVisualizer(QWidget):
         self.font_family = "Fira Code"
         self.font_size = 18
 
+        self.layout_margins = 8
+        self.layout_item_spacing = 2 * self.layout_margins
+
         # canvas positioning - scale and translation
         self.scale = 1
         self.scale_coefficient = 1.1  # by how much the scale changes on scroll
@@ -71,10 +74,12 @@ class TreeVisualizer(QWidget):
         self.main_v_layout = QVBoxLayout(self, margin=0)
         self.main_v_layout.addWidget(self.canvas)
 
-        self.option_h_layout = QHBoxLayout(self, margin=10)
+        self.option_h_layout = QHBoxLayout(self, margin=self.layout_margins)
         self.option_h_layout.addWidget(self.oriented_toggle_button)
+        self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.labels_checkbox)
         self.option_h_layout.addWidget(self.labels_line_edit)
+        self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.about_button)
 
         self.main_v_layout.addLayout(self.option_h_layout)
