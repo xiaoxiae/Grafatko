@@ -108,6 +108,7 @@ class TreeVisualizer(QWidget):
             <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
             <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node</li>
             <li><em>Mouse Wheel</em> &ndash; zooms in/out</li>
+            <li><em>Shift + Left Mouse Button</em> &ndash; moves all nodes</li>
             <li><em>Shift + Mouse Wheel</em> &ndash; rotates all of the nodes around the currently selected node<br /></li>
             <li><em>Delete</em> &ndash; deletes the currently selected node</li>
             </ul>
@@ -318,8 +319,21 @@ class TreeVisualizer(QWidget):
 
         # drag the selected node
         if self.selected_node is not None and self.mouse_drag_offset is not None:
+            prev_x = self.selected_node.get_x()
+            prev_y = self.selected_node.get_y()
+
             self.selected_node.set_x(self.mouse_x - self.mouse_drag_offset[0])
             self.selected_node.set_y(self.mouse_y - self.mouse_drag_offset[1])
+
+            # move all of the nodes if shift is pressed
+            if QApplication.keyboardModifiers() == Qt.ShiftModifier:
+                x_delta = self.selected_node.get_x() - prev_x
+                y_delta = self.selected_node.get_y() - prev_y
+
+                for node in self.graph.get_nodes():
+                    if node is not self.selected_node:
+                        node.set_x(node.get_x() + x_delta)
+                        node.set_y(node.get_y() + y_delta)
 
         self.update()
 
