@@ -77,7 +77,17 @@ class Graph:
 
     def set_oriented(self, oriented):
         """Sets the orientation of the graph."""
+        # if we are converting from oriented, we need to change all of the vertices to go both ways
+        if not oriented:
+            self._convert_from_oriented()
+
         self.oriented = oriented
+
+    def _convert_from_oriented(self):
+        """Converts each of the vertices of the graph to go both ways. Takes O(number of nodes * number of vertices)."""
+        for node in self.get_nodes():
+            for neighbour in node.get_neighbours():
+                self.add_vertex(neighbour, node)
 
     def get_nodes(self):
         """Returns a list of nodes of the graph."""

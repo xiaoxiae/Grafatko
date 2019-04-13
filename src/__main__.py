@@ -55,8 +55,9 @@ class TreeVisualizer(QWidget):
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
 
-        # for toggling between oriented/unoriented graphs
-        self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.set_graph_orientation)
+        # for toggling between oriented/undirected graphs
+        self.oriented_toggle_button = QPushButton(text="toggle orientation",
+                                                  clicked=self.toggle_graph_orientation)
 
         # for editing the labels of the nodes
         self.labels_checkbox = QCheckBox(text="labels")
@@ -71,7 +72,7 @@ class TreeVisualizer(QWidget):
         self.main_v_layout.addWidget(self.canvas)
 
         self.option_h_layout = QHBoxLayout(self, margin=10)
-        self.option_h_layout.addWidget(self.oriented_checkbox)
+        self.option_h_layout.addWidget(self.oriented_toggle_button)
         self.option_h_layout.addWidget(self.labels_checkbox)
         self.option_h_layout.addWidget(self.labels_line_edit)
         self.option_h_layout.addWidget(self.about_button)
@@ -119,9 +120,9 @@ class TreeVisualizer(QWidget):
 
         QMessageBox.information(self, "About", message)
 
-    def set_graph_orientation(self):
+    def toggle_graph_orientation(self):
         """Is called when the oriented checkbox changes; sets the orientation of the graph."""
-        self.graph.set_oriented(self.oriented_checkbox.isChecked())
+        self.graph.set_oriented(not self.graph.is_oriented())
 
     def update_selected_node_label(self, text):
         """Is called when the labels line edit changes; changes the label of the currently selected node. If the label
