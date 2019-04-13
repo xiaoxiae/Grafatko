@@ -56,7 +56,7 @@ class TreeVisualizer(QWidget):
 
         self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.set_graph_orientation)
 
-        self.labels_checkbox = QCheckBox(text="labels", clicked=self.enable_node_label_editing)
+        self.labels_checkbox = QCheckBox(text="labels")
         self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
                                           textChanged=self.update_selected_node_label)
 
@@ -118,15 +118,10 @@ class TreeVisualizer(QWidget):
         """Is called when the oriented checkbox changes; sets the orientation of the graph."""
         self.graph.set_oriented(self.oriented_checkbox.isChecked())
 
-    def enable_node_label_editing(self):
-        """Is called when the label checkbox changes; enable/disable the labels line edit."""
-        self.labels_line_edit.setEnabled(self.labels_checkbox.isChecked())
-
     def update_selected_node_label(self, text):
         """Is called when the labels line edit changes; changes the label of the currently selected node. If the label
         exceeds the maximum displayed length of a node, turns the labels line edit red."""
-        if self.selected_node is not None:
-            self.selected_node.set_label(text)
+        self.selected_node.set_label(text)
 
         # set the background of the line edit color, according to whether the word is of appropriate length
         palette = self.labels_line_edit.palette()
@@ -137,16 +132,23 @@ class TreeVisualizer(QWidget):
         self.labels_line_edit.setPalette(palette)
 
     def select_node(self, node):
-        """Sets the selected node to the specified node and changes the text in labels line edit to its label."""
+        """Sets the selected node to the specified node, changes the text in labels line edit to its label and
+        enables it."""
         self.selected_node = node
         self.labels_line_edit.setText(node.get_label())
+        self.labels_line_edit.setEnabled(True)
+
+    def deselect_node(self):
+        """Sets the selected node to None and disables the labels line edit."""
+        self.selected_node = None
+        self.labels_line_edit.setEnabled(False)
 
     def keyPressEvent(self, event):
         """Is called when a key is pressed on the keyboard; deletes vertices."""
         if event.key() == Qt.Key_Delete:
             if self.selected_node is not None:
                 self.graph.delete_node(self.selected_node)
-                self.selected_node = None
+                self.deselect_node()
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
@@ -180,7 +182,8 @@ class TreeVisualizer(QWidget):
                 self.mouse_x = x
                 self.mouse_y = y
             else:
-                self.selected_node = None
+                self.deselect_node()
+
 
         elif event.button() == Qt.RightButton:
             # either make/remove a connection, or create a new node
