@@ -40,6 +40,11 @@ class TreeVisualizer(QWidget):
         self.font_family = "Fira Code"
         self.font_size = 18
 
+        # canvas positioning - scale and translation
+        self.scale = 1
+        self.scale_coefficient = 1.1  # by how much the scale changes on scroll
+        self.translation = [0, 0]
+
         # for moving the nodes
         self.node_rotation_angle = 20
 
@@ -98,7 +103,8 @@ class TreeVisualizer(QWidget):
             <ul>
             <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
             <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node</li>
-            <li><em>Shift + Mouse Wheel</em> &ndash; rotate all of the nodes around the currently selected node<br /></li>
+            <li><em>Mouse Wheel</em> &ndash; zooms in/out</li>
+            <li><em>Shift + Mouse Wheel</em> &ndash; rotates all of the nodes around the currently selected node<br /></li>
             <li><em>Delete</em> &ndash; deletes the currently selected node</li>
             </ul>
             <hr />
@@ -208,12 +214,35 @@ class TreeVisualizer(QWidget):
         self.mouse_y = mouse_coordinates[1]
 
     def wheelEvent(self, event):
-        """Is called when the mouse wheel is moved. Controls the zoom."""
-        # rotate nodes around when shift is pressed
-        if QApplication.keyboardModifiers() == Qt.ShiftModifier and self.selected_node is not None:
-            angle = self.node_rotation_angle if event.angleDelta().y() > 0 else -self.node_rotation_angle
+        """Is called when the mouse wheel is moved; controls the zoom and node rotation."""
+        if QApplication.keyboardModifiers() == Qt.ShiftModifier:
+            if self.selected_node is not None:
+                # positive/negative for scrolling away and towards the user
+                angle = self.node_rotation_angle if event.angleDelta().y() > 0 else -self.node_rotation_angle
 
-            self.rotate_nodes_around(self.selected_node.get_x(), self.selected_node.get_y(), angle)
+                self.rotate_nodes_around(self.selected_node.get_x(), self.selected_node.get_y(), angle)
+        else:
+            # only do something, if we're working on canvas
+            mouse_coordinates = self.get_mouse_coordinates(event)
+
+            if mouse_coordinates is None:
+                return
+
+            # variables for adjusting the canvas translation
+            x, y = mouse_coordinates[0], mouse_coordinates[1]
+            prev_scale = self.scale
+
+            # adjust the canvas scale, depending on the scroll direction
+            # if angleDelta.y() is positive, scroll away (zoom out) from the user (and vice versa)
+            if event.angleDelta().y() > 0:
+                self.scale /= self.scale_coefficient
+            else:
+                self.scale *= self.scale_coefficient
+
+            # zoom so the mouse x and y remains the same
+            scale_delta = self.scale - prev_scale
+            self.translation[0] += -(x * scale_delta)
+            self.translation[1] += -(y * scale_delta)
 
     def rotate_nodes_around(self, x, y, angle):
         """Rotates coordinates of all of the points by a certain angle (in degrees) around the specified point."""
@@ -240,10 +269,14 @@ class TreeVisualizer(QWidget):
 
         # return scaled-down coordinates if scale_down is True
         if scale_down:
-            return (x if x_on_canvas else 0 if x <= 0 else self.canvas.width(),
-                    y if y_on_canvas else 0 if y <= 0 else self.canvas.height())
-        else:
-            return (x, y) if x_on_canvas and y_on_canvas else None
+            x = x if x_on_canvas else 0 if x <= 0 else self.canvas.width()
+            y = y if y_on_canvas else 0 if y <= 0 else self.canvas.height()
+        elif not x_on_canvas or not y_on_canvas:
+            return None
+
+        # return the mouse coordinates, accounting for the translation and scale of the canvas
+        return ((x - self.translation[0]) / self.scale,
+                (y - self.translation[1]) / self.scale)
 
     def perform_simulation_iteration(self):
         """Performs one iteration of the simulation."""
@@ -302,6 +335,10 @@ class TreeVisualizer(QWidget):
 
         # draw the background
         painter.drawRect(0, 0, self.canvas.width(), self.canvas.height())
+
+        # reposition the painter
+        painter.translate(self.translation[0], self.translation[1])
+        painter.scale(self.scale, self.scale)
 
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
         for node in self.graph.get_nodes():
