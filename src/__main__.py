@@ -176,7 +176,7 @@ class TreeVisualizer(QWidget):
             else:
                 self.selected_node = None
 
-        else:
+        elif event.button() == Qt.RightButton:
             # either make/remove a connection, or create a new node
             if pressed_node is not None:
                 if self.selected_node is not None and pressed_node is not self.selected_node:
