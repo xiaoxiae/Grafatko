@@ -116,7 +116,7 @@ class Graph:
 
     def add_vertex(self, n1, n2):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
-        vertex doesn't already exist. Takes O(n)."""
+        vertex doesn't already exist. Takes O(number of nodes)."""
         # from n1 to n2
         if n2 not in n1.neighbours:
             n1.neighbours.append(n2)
@@ -126,12 +126,12 @@ class Graph:
             n2.neighbours.append(n1)
 
     def does_vertex_exist(self, n1, n2, ignore_orientation=False):
-        """Returns True if a vertex exists between the two nodes and False otherwise."""
+        """Returns True if a vertex exists between the two nodes and False otherwise. Takes O(number of nodes)."""
         return n2 in n1.neighbours or ((not self.oriented or ignore_orientation) and n1 in n2.neighbours)
 
     def remove_vertex(self, n1, n2):
         """Removes a vertex from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
-        vertex exists. Takes O(n)."""
+        vertex exists. Takes O(number of nodes)."""
         # from n1 to n2
         if n2 in n1.neighbours:
             n1.neighbours.remove(n2)

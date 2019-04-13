@@ -3,8 +3,8 @@ from math import sqrt, cos, sin, radians
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, QPushButton, \
-    QMessageBox
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, \
+    QPushButton, QMessageBox
 
 from graph import Graph
 
@@ -49,18 +49,22 @@ class TreeVisualizer(QWidget):
         self.node_rotation_angle = 20
 
         # TIMERS
+        # runs the simulation 60 times a second (1000/60 ~= 16ms)
         self.simulation_timer = QTimer(interval=16, timeout=self.perform_simulation_iteration)
 
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
 
+        # for toggling between oriented/unoriented graphs
         self.oriented_checkbox = QCheckBox(text="oriented", clicked=self.set_graph_orientation)
 
+        # for editing the labels of the nodes
         self.labels_checkbox = QCheckBox(text="labels")
         self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
                                           textChanged=self.update_selected_node_label)
 
-        self.help_button = QPushButton(text="?", clicked=self.show_help)
+        # for displaying information about the app
+        self.about_button = QPushButton(text="?", clicked=self.show_help)
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
@@ -70,14 +74,14 @@ class TreeVisualizer(QWidget):
         self.option_h_layout.addWidget(self.oriented_checkbox)
         self.option_h_layout.addWidget(self.labels_checkbox)
         self.option_h_layout.addWidget(self.labels_line_edit)
-        self.option_h_layout.addWidget(self.help_button)
+        self.option_h_layout.addWidget(self.about_button)
 
         self.main_v_layout.addLayout(self.option_h_layout)
 
         self.setLayout(self.main_v_layout)
 
         # WINDOW SETTINGS
-        self.setWindowTitle('Graph Visualizer in PyQt5!')
+        self.setWindowTitle('Graph Visualizer')
         self.setFont(QFont(self.font_family, self.font_size))
         self.show()
 
@@ -183,8 +187,6 @@ class TreeVisualizer(QWidget):
                 self.mouse_y = y
             else:
                 self.deselect_node()
-
-
         elif event.button() == Qt.RightButton:
             # either make/remove a connection, or create a new node
             if pressed_node is not None:
@@ -195,14 +197,12 @@ class TreeVisualizer(QWidget):
                     else:
                         self.graph.add_vertex(self.selected_node, pressed_node)
             else:
-                # create a new node
                 node = self.graph.add_node(x, y, self.node_radius)
 
                 # if a selected node exists, connect it to the newly created node
                 if self.selected_node is not None:
                     self.graph.add_vertex(self.selected_node, node)
 
-                # make the newly created node the currently selected node
                 self.select_node(node)
 
     def mouseReleaseEvent(self, event):
@@ -225,13 +225,12 @@ class TreeVisualizer(QWidget):
 
                 self.rotate_nodes_around(self.selected_node.get_x(), self.selected_node.get_y(), angle)
         else:
-            # only do something, if we're working on canvas
             mouse_coordinates = self.get_mouse_coordinates(event)
 
+            # only do something, if we're working on canvas
             if mouse_coordinates is None:
                 return
 
-            # variables for adjusting the canvas translation
             x, y = mouse_coordinates[0], mouse_coordinates[1]
             prev_scale = self.scale
 
@@ -242,7 +241,7 @@ class TreeVisualizer(QWidget):
             else:
                 self.scale *= self.scale_coefficient
 
-            # zoom so the mouse x and y remains the same
+            # adjust translation so the x and y of the mouse remains the same
             scale_delta = self.scale - prev_scale
             self.translation[0] += -(x * scale_delta)
             self.translation[1] += -(y * scale_delta)
@@ -253,7 +252,7 @@ class TreeVisualizer(QWidget):
 
         for node in self.graph.get_nodes():
             if node is not self.selected_node:
-                # translate the coordinates to origin
+                # translate the coordinates to origin for the rotation to work
                 node_x, node_y = node.get_x() - x, node.get_y() - y
 
                 # rotate and translate the coordinates of the node
@@ -270,7 +269,7 @@ class TreeVisualizer(QWidget):
         x_on_canvas = 0 <= x <= self.canvas.width()
         y_on_canvas = 0 <= y <= self.canvas.height()
 
-        # return scaled-down coordinates if scale_down is True
+        # return if scale_down is True, scale down the coordinates so they're on canvas
         if scale_down:
             x = x if x_on_canvas else 0 if x <= 0 else self.canvas.width()
             y = y if y_on_canvas else 0 if y <= 0 else self.canvas.height()
@@ -283,7 +282,7 @@ class TreeVisualizer(QWidget):
 
     def perform_simulation_iteration(self):
         """Performs one iteration of the simulation."""
-        # evaluate forces that act upon the nodes
+        # evaluate forces that act upon each pair of nodes
         for i in range(len(self.graph.get_nodes())):
             n1 = self.graph.get_nodes()[i]
             for j in range(i + 1, len(self.graph.get_nodes())):
@@ -305,12 +304,12 @@ class TreeVisualizer(QWidget):
                 n1.add_force((-ux * fr, -uy * fr))
                 n2.add_force((ux * fr, uy * fr))
 
-                # if they are connected, add the leash force (regardless of whether the graph is oriented or not)
+                # if they are connected, add the leash force, regardless of whether the graph is oriented or not
                 if self.graph.does_vertex_exist(n1, n2, ignore_orientation=True):
                     # the size of the attraction force between the two nodes
                     fa = self.attraction_force(d)
 
-                    # add the repel force to each of the nodes, in the opposite directionss
+                    # add the repel force to each of the nodes, in the opposite directions
                     n1.add_force((-ux * fa, -uy * fa))
                     n2.add_force((ux * fa, uy * fa))
 
@@ -333,7 +332,7 @@ class TreeVisualizer(QWidget):
         painter.setPen(QPen(Qt.black, Qt.SolidLine))
         painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
 
-        # bound the area to only draw on the canvas
+        # bound the area to only draw on canvas
         painter.setClipRect(0, 0, self.canvas.width(), self.canvas.height())
 
         # draw the background
@@ -379,18 +378,18 @@ class TreeVisualizer(QWidget):
 
         # draw nodes
         for node in self.graph.get_nodes():
-            # selected nodes are red; others are white
+            # selected nodes are red to make them distinct; others are white
             if node is self.selected_node:
                 painter.setBrush(QBrush(self.selected_node_color, Qt.SolidPattern))
             else:
                 painter.setBrush(QBrush(self.regular_node_color, Qt.SolidPattern))
 
-            # node information
+            # information about the node necessary for drawing
             x, y, r = node.get_x(), node.get_y(), node.get_radius()
 
             painter.drawEllipse(QPoint(x, y), r, r)
 
-            # if the label checkbox is checked, draw its label
+            # only draw labels if the label checkbox is checked
             if self.labels_checkbox.isChecked():
                 label = node.get_label()[:self.word_limit]
 
@@ -399,7 +398,7 @@ class TreeVisualizer(QWidget):
                     # scale font down, depending on the length of the label of the node
                     painter.setFont(QFont(self.font_family, self.font_size / len(label)))
 
-                    # draw the node label
+                    # draw the node label within the node dimensions
                     painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
 
     def distance(self, x1, y1, x2, y2):
