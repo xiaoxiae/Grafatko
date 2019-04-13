@@ -1,10 +1,11 @@
 import sys
 from math import sqrt, cos, sin, radians
+from random import random
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, \
-    QPushButton, QMessageBox
+    QPushButton, QMessageBox, QFileDialog
 
 from graph import Graph
 
@@ -70,6 +71,8 @@ class TreeVisualizer(QWidget):
         # for displaying information about the app
         self.about_button = QPushButton(text="?", clicked=self.show_help)
 
+        self.import_graph_button = QPushButton(text="import", clicked=self.import_graph)
+
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
         self.main_v_layout.addWidget(self.canvas)
@@ -82,7 +85,12 @@ class TreeVisualizer(QWidget):
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.about_button)
 
+        self.io_h_layout = QHBoxLayout(self, margin=self.layout_margins)
+        self.io_h_layout.addWidget(self.import_graph_button)
+
         self.main_v_layout.addLayout(self.option_h_layout)
+        self.main_v_layout.addSpacing(-self.layout_margins)
+        self.main_v_layout.addLayout(self.io_h_layout)
 
         self.setLayout(self.main_v_layout)
 
@@ -101,6 +109,54 @@ class TreeVisualizer(QWidget):
     def attraction_force(self, distance, leash_length=80):
         """Calculates the strength of the attraction force at the specified distance and leash length."""
         return -(distance - leash_length) / 10
+
+    def import_graph(self):
+        """Is called when the import button is clicked; imports a graph from a file."""
+        path = QFileDialog.getOpenFileName()[0]
+
+        if path != "":
+            try:
+                with open(path, "r") as file:
+                    # a list of vertices of the graph
+                    data = file.read().splitlines()
+
+                    # the graph will be oriented if the input data contains oriented vertices
+                    graph = Graph(oriented=True if len(data[0].split(" ")) == 3 else False)
+
+                    # to remember the created nodes and to connect them later
+                    node_dictionary = {}
+
+                    # add each of the nodes of the vertex to the graph
+                    for vertex in data:
+                        vertex_components = vertex.split(" ")
+                        nodes = [vertex_components[0], vertex_components[-1]]
+
+                        for node in nodes:
+                            if node not in node_dictionary:
+                                # slightly randomize the coordinates so the graph doesn't stay in one place forever
+                                x = self.canvas.width() / 2 + (random() - 0.5)
+                                y = self.canvas.height() / 2 + (random() - 0.5)
+
+                                # add it to graph with default values
+                                node_dictionary[node] = graph.add_node(x, y, self.node_radius, node)
+
+                        if len(vertex_components) == 2 or vertex_components[1] == "->":
+                            graph.add_vertex(node_dictionary[nodes[0]], node_dictionary[nodes[1]])
+                        elif vertex_components[1] == "<-":
+                            graph.add_vertex(node_dictionary[nodes[1]], node_dictionary[nodes[0]])
+                        else:
+                            graph.add_vertex(node_dictionary[nodes[0]], node_dictionary[nodes[1]])
+                            graph.add_vertex(node_dictionary[nodes[1]], node_dictionary[nodes[0]])
+
+                self.graph = graph
+
+            except UnicodeDecodeError:
+                QMessageBox.critical(self, "Error!", "Can't read binary files!")
+            except Exception:
+                QMessageBox.critical(self, "Error!", "An error occurred when importing the graph. Make sure that the "
+                                                     "file is in the correct format!")
+
+            self.deselect_node()
 
     def show_help(self):
         """Is called when the help button is clicked; displays basic information about the application."""
