@@ -203,10 +203,10 @@ class TreeVisualizer(QWidget):
             <p>The controls are as follows:</p>
             <ul>
             <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
-            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices from the currently selected node</li>
+            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices</li>
             <li><em>Mouse Wheel</em> &ndash; zooms in/out</li>
-            <li><em>Shift + Left Mouse Button</em> &ndash; moves all nodes</li>
-            <li><em>Shift + Mouse Wheel</em> &ndash; rotates all of the nodes around the currently selected node<br /></li>
+            <li><em>Shift + Left Mouse Button</em> &ndash; moves connected nodes</li>
+            <li><em>Shift + Mouse Wheel</em> &ndash; rotates nodes around the selected node<br /></li>
             <li><em>Delete</em> &ndash; deletes the currently selected node</li>
             </ul>
             <hr />
