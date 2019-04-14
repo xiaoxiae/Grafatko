@@ -191,16 +191,18 @@ class TreeVisualizer(QWidget):
         self.oriented_toggle_button.setText("directed" if self.graph.is_oriented() else "undirected")
 
     def update_selected_node_label(self, text):
-        """Is called when the labels line edit changes; changes the label of the currently selected node. If the label
-        exceeds the maximum displayed length of a node, turns the labels line edit red."""
-        self.selected_node.set_label(text)
-
-        # set the background of the line edit color, according to whether the word is of appropriate length
+        """Is called when the labels line edit changes; changes the label of the currently selected node (if the name
+        is valid)."""
         palette = self.labels_line_edit.palette()
-        if len(text) > self.word_limit:
-            palette.setColor(self.labels_line_edit.backgroundRole(), Qt.red)
-        else:
+
+        # the text has to be non-zero and not contain spaces, for the import/export language to work
+        # the text length is also restricted, for rendering purposes
+        if 0 < len(text) < self.word_limit and " " not in text:
+            self.selected_node.set_label(text)
             palette.setColor(self.labels_line_edit.backgroundRole(), Qt.white)
+        else:
+            palette.setColor(self.labels_line_edit.backgroundRole(), Qt.red)
+
         self.labels_line_edit.setPalette(palette)
 
     def select_node(self, node):
@@ -472,12 +474,10 @@ class TreeVisualizer(QWidget):
 
             # only draw labels if the label checkbox is checked
             if self.labels_checkbox.isChecked():
-                label = node.get_label()[:self.word_limit]
+                label = node.get_label()
 
-                # only draw the label, if it has characters
-                if len(label) != 0:
-                    # scale font down, depending on the length of the label of the node
-                    painter.setFont(QFont(self.font_family, self.font_size / len(label)))
+                # scale font down, depending on the length of the label of the node
+                painter.setFont(QFont(self.font_family, self.font_size / len(label)))
 
                     # draw the node label within the node dimensions
                     painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
