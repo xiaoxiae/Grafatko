@@ -72,6 +72,7 @@ class TreeVisualizer(QWidget):
         self.about_button = QPushButton(text="?", clicked=self.show_help)
 
         self.import_graph_button = QPushButton(text="import", clicked=self.import_graph)
+        self.export_graph_button = QPushButton(text="export", clicked=self.export_graph)
 
         # WIDGET LAYOUT
         self.main_v_layout = QVBoxLayout(self, margin=0)
@@ -87,6 +88,8 @@ class TreeVisualizer(QWidget):
 
         self.io_h_layout = QHBoxLayout(self, margin=self.layout_margins)
         self.io_h_layout.addWidget(self.import_graph_button)
+        self.io_h_layout.addSpacing(self.layout_item_spacing)
+        self.io_h_layout.addWidget(self.export_graph_button)
 
         self.main_v_layout.addLayout(self.option_h_layout)
         self.main_v_layout.addSpacing(-self.layout_margins)
@@ -157,6 +160,38 @@ class TreeVisualizer(QWidget):
                                                      "file is in the correct format!")
 
             self.deselect_node()
+
+    def export_graph(self):
+        """Is called when the export button is clicked; exports a graph to a file."""
+        path = QFileDialog.getSaveFileName()[0]
+
+        if path != "":
+            try:
+                with open(path, "w") as file:
+
+                    # look at every pair of nodes and examine the vertices
+                    for i in range(len(self.graph.get_nodes())):
+                        n1 = self.graph.get_nodes()[i]
+                        for j in range(i + 1, len(self.graph.get_nodes())):
+                            n2 = self.graph.get_nodes()[j]
+
+                            n1_to_n2 = self.graph.does_vertex_exist(n1, n2)
+
+                            if not self.graph.is_oriented() and n1_to_n2:
+                                # for undirected graphs, no direction symbols are necessary
+                                file.write(n1.get_label() + " " + n2.get_label() + "\n")
+                            else:
+                                n2_to_n1 = self.graph.does_vertex_exist(n2, n1)
+
+                                if n1_to_n2 and n2_to_n1:
+                                    file.write(n1.get_label() + " <> " + n2.get_label() + "\n")
+                                elif n1_to_n2:
+                                    file.write(n1.get_label() + " -> " + n2.get_label() + "\n")
+                                elif n2_to_n1:
+                                    file.write(n1.get_label() + " <- " + n2.get_label() + "\n")
+            except Exception:
+                QMessageBox.critical(self, "Error!", "An error occurred when exporting the graph. Make sure that you "
+                                                     "have permission to write to the specified file!")
 
     def show_help(self):
         """Is called when the help button is clicked; displays basic information about the application."""
@@ -479,8 +514,8 @@ class TreeVisualizer(QWidget):
                 # scale font down, depending on the length of the label of the node
                 painter.setFont(QFont(self.font_family, self.font_size / len(label)))
 
-                    # draw the node label within the node dimensions
-                    painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
+                # draw the node label within the node dimensions
+                painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
 
     def distance(self, x1, y1, x2, y2):
         """Returns the distance of two points in space."""
