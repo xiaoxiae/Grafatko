@@ -1,5 +1,5 @@
 import sys
-from math import sqrt, cos, sin, radians
+from math import sqrt, cos, sin, radians, pi
 from random import random
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
@@ -30,7 +30,10 @@ class TreeVisualizer(QWidget):
 
         # variables for visualizing the graph
         self.node_radius = 20
+        self.weight_rectangle_radius = self.node_radius / 3
+
         self.arrowhead_size = 4
+        self.arrow_separation = pi / 6
 
         self.selected_node_color = Qt.red
         self.regular_node_color = Qt.white
@@ -68,6 +71,9 @@ class TreeVisualizer(QWidget):
         self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
                                           textChanged=self.update_selected_node_label)
 
+        # for setting, whether the graph is weighted or not
+        self.weighted_checkbox = QCheckBox(text="weighted", clicked=self.set_weighted_graph)
+
         # for displaying information about the app
         self.about_button = QPushButton(text="?", clicked=self.show_help)
 
@@ -80,6 +86,8 @@ class TreeVisualizer(QWidget):
 
         self.option_h_layout = QHBoxLayout(self, margin=self.layout_margins)
         self.option_h_layout.addWidget(self.oriented_toggle_button)
+        self.option_h_layout.addSpacing(self.layout_item_spacing)
+        self.option_h_layout.addWidget(self.weighted_checkbox)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.labels_checkbox)
         self.option_h_layout.addWidget(self.labels_line_edit)
@@ -104,6 +112,10 @@ class TreeVisualizer(QWidget):
 
         # start the simulation
         self.simulation_timer.start()
+
+    def set_weighted_graph(self):
+        """Is called when the weighted checkbox is pressed; sets, whether the graph is weighted or not."""
+        self.graph.set_weighted(self.weighted_checkbox.isChecked())
 
     def repulsion_force(self, distance):
         """Calculates the strength of the repulsion force at the specified distance."""
@@ -462,37 +474,67 @@ class TreeVisualizer(QWidget):
 
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
         for node in self.graph.get_nodes():
-            for neighbour in node.get_neighbours():
+            for neighbour, weight in node.get_neighbours().items():
                 x1, y1, x2, y2 = node.get_x(), node.get_y(), neighbour.get_x(), neighbour.get_y()
+
+                # create a unit vector from the first to the second graph
+                d = self.distance(x1, y1, x2, y2)
+                ux, uy = (x2 - x1) / d, (y2 - y1) / d
+                r = neighbour.get_radius()
 
                 # if it's oriented, draw an arrow
                 if self.graph.is_oriented():
-                    # calculate the position of the head of the arrow
-                    # done by "shrinking" the distance from (x1, y1) to (x2, y2) by the radius of the node at (x2, y2)
-                    d = self.distance(x1, y1, x2, y2)
-                    ux, uy = (x2 - x1) / d, (y2 - y1) / d
-                    r = neighbour.get_radius()
+                    # in case there is a vertex going the other way, we will move the line up the circles, so
+                    # there is separation between the vertices
+                    if self.graph.does_vertex_exist(neighbour, node):
+                        nx = -uy * r * sin(self.arrow_separation) + ux * r * (1 - cos(self.arrow_separation))
+                        ny = ux * r * sin(self.arrow_separation) + uy * r * (1 - cos(self.arrow_separation))
+
+                        x1, x2, y1, y2 = x1 + nx, x2 + nx, y1 + ny, y2 + ny
 
                     # the position of the head of the arrow
                     xa, ya = x1 + ux * (d - r), y1 + uy * (d - r)
 
-                    # calculate the base of the arrow
+                    # calculate the two remaining points of the arrow
                     # this is done the same way as the previous calculation
                     d = self.distance(x1, y1, xa, ya)
-                    ux, uy = (xa - x1) / d, (ya - y1) / d
+                    ux_arrow, uy_arrow = (xa - x1) / d, (ya - y1) / d
 
                     # position of the base of the arrow
-                    x, y = x1 + ux * (d - self.arrowhead_size * 2), y1 + uy * (d - self.arrowhead_size * 2)
+                    x, y = x1 + ux_arrow * (d - self.arrowhead_size * 2), y1 + uy_arrow * (d - self.arrowhead_size * 2)
 
                     # the normal vectors to the unit vector of the arrow head
-                    nx, ny = -uy, ux
+                    nx_arrow, ny_arrow = -uy_arrow, ux_arrow
 
                     painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
                     painter.drawPolygon(QPoint(xa, ya),
-                                        QPoint(x + nx * self.arrowhead_size, y + ny * self.arrowhead_size),
-                                        QPoint(x - nx * self.arrowhead_size, y - ny * self.arrowhead_size))
+                                        QPoint(x + nx_arrow * self.arrowhead_size, y + ny_arrow * self.arrowhead_size),
+                                        QPoint(x - nx_arrow * self.arrowhead_size, y - ny_arrow * self.arrowhead_size))
 
                 painter.drawLine(x1, y1, x2, y2)
+
+                # if it's weighted, draw the weight
+                if self.graph.is_weighted():
+                    x_middle = (x2 + x1) / 2
+                    y_middle = (y2 + y1) / 2
+
+                    # if the graph is oriented, the vertices will be offset, so we need to offset the vertex value back
+                    if self.graph.is_oriented():
+                        x_middle -= ux * r * (1 - cos(self.arrow_separation))
+                        y_middle -= uy * r * (1 - cos(self.arrow_separation))
+
+                    r = self.weight_rectangle_radius
+
+                    # draw the rectangle for the vertex
+                    painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
+                    painter.drawRect(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r))
+
+                    painter.setFont(QFont(self.font_family, self.font_size / (len(str(weight)) * 3)))
+
+                    # draw the value of the vertex
+                    painter.setPen(QPen(Qt.white, Qt.SolidLine))
+                    painter.drawText(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r), Qt.AlignCenter, str(weight))
+                    painter.setPen(QPen(Qt.black, Qt.SolidLine))
 
         # draw nodes
         for node in self.graph.get_nodes():
