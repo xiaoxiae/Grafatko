@@ -58,6 +58,8 @@ class TreeVisualizer(QWidget):
 
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(600, 600))
+        self.canvas_size = (self.canvas.width(), self.canvas.height())
+        self.canvas.resizeEvent = self.adjust_canvas_translation
 
         # for toggling between oriented/undirected graphs
         self.oriented_toggle_button = QPushButton(text="undirected",
@@ -104,6 +106,15 @@ class TreeVisualizer(QWidget):
 
         # start the simulation
         self.simulation_timer.start()
+
+    def adjust_canvas_translation(self, event):
+        """Is called when the canvas widget is resized; changes translation so the center stays in the center."""
+        size = (event.size().width(), event.size().height())
+
+        self.translation[0] += self.scale * (size[0] - self.canvas_size[0]) / 2
+        self.translation[1] += self.scale * (size[1] - self.canvas_size[1]) / 2
+
+        self.canvas_size = size
 
     def repulsion_force(self, distance):
         """Calculates the strength of the repulsion force at the specified distance."""
