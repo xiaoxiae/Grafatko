@@ -37,10 +37,12 @@ class TreeVisualizer(QWidget):
         self.weight_rectangle_size = self.node_radius / 3
 
         self.arrowhead_size = 4
-        self.arrow_separation = pi / 6
+        self.arrow_separation = pi / 7
 
-        self.selected_node_color = Qt.red
+        self.selected_color = Qt.red
+
         self.regular_node_color = Qt.white
+        self.regular_vertex_weight_color = Qt.black
 
         self.word_limit = 10  # limit the displayed length of words for each node
 
@@ -575,40 +577,48 @@ class TreeVisualizer(QWidget):
                                         QPoint(x + nx_arrow * self.arrowhead_size, y + ny_arrow * self.arrowhead_size),
                                         QPoint(x - nx_arrow * self.arrowhead_size, y - ny_arrow * self.arrowhead_size))
 
-                painter.drawLine(x1, y1, x2, y2)
+                # draw only one of the two vertices, if the graph is undirected
+                if self.graph.is_oriented() or id(node) < id(neighbour):
+                    painter.drawLine(x1, y1, x2, y2)
 
-                # if it's weighted, draw the weight
-                if self.graph.is_weighted():
-                    x_middle = (x2 + x1) / 2
-                    y_middle = (y2 + y1) / 2
+                    if self.graph.is_weighted():
+                        x_middle = (x2 + x1) / 2
+                        y_middle = (y2 + y1) / 2
 
-                    # if the graph is oriented, the vertices will be offset, so we need to offset the vertex value back
-                    if self.graph.is_oriented():
-                        x_middle -= ux * r * (1 - cos(self.arrow_separation))
-                        y_middle -= uy * r * (1 - cos(self.arrow_separation))
+                        # if the graph is oriented the vertices are offset (so they aren't draw on top of each other)
+                        # this makes it so that the vertex rectangle is drawn directly in the middle
+                        if self.graph.is_oriented():
+                            x_middle -= ux * r * (1 - cos(self.arrow_separation))
+                            y_middle -= uy * r * (1 - cos(self.arrow_separation))
 
-                    r = self.weight_rectangle_size
+                        r = self.weight_rectangle_size
 
-                    # remember the coordinate to select it later; in case of undirected graphs, only remember it once
-                    if self.graph.is_oriented() or id(node) < id(neighbour):
                         self.vertex_positions.append((x_middle, y_middle, (node, neighbour)))
 
-                    # draw the rectangle for the vertex
-                    painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
-                    painter.drawRect(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r))
+                        # make the rectangle background different, if it's selected (for aesthetics)
+                        if self.selected_vertex is not None and node is self.selected_vertex[0] and neighbour is \
+                                self.selected_vertex[1]:
+                            painter.setBrush(QBrush(self.selected_color, Qt.SolidPattern))
+                        else:
+                            painter.setBrush(QBrush(self.regular_vertex_weight_color, Qt.SolidPattern))
 
-                    painter.setFont(QFont(self.font_family, self.font_size / (len(str(weight)) * 3)))
+                        painter.drawRect(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r))
 
-                    # draw the value of the vertex
-                    painter.setPen(QPen(Qt.white, Qt.SolidLine))
-                    painter.drawText(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r), Qt.AlignCenter, str(weight))
-                    painter.setPen(QPen(Qt.black, Qt.SolidLine))
+                        # adjust the length so the minus sign doesn't make the number smaller
+                        length = len(str(weight)) - (1 if weight < 0 else 0)
+
+                        painter.setFont(QFont(self.font_family, self.font_size / (length * 3)))
+
+                        # draw the value of the vertex (in white, so it's visible against the background)
+                        painter.setPen(QPen(Qt.white, Qt.SolidLine))
+                        painter.drawText(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r), Qt.AlignCenter, str(weight))
+                        painter.setPen(QPen(Qt.black, Qt.SolidLine))
 
         # draw nodes
         for node in self.graph.get_nodes():
             # selected nodes are red to make them distinct; others are white
             if node is self.selected_node:
-                painter.setBrush(QBrush(self.selected_node_color, Qt.SolidPattern))
+                painter.setBrush(QBrush(self.selected_color, Qt.SolidPattern))
             else:
                 painter.setBrush(QBrush(self.regular_node_color, Qt.SolidPattern))
 
