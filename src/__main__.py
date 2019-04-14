@@ -38,7 +38,7 @@ class TreeVisualizer(QWidget):
         self.word_limit = 10  # limit the displayed length of words for each node
 
         # UI variables
-        self.font_family = "Fira Code"
+        self.font_family = "Times New Roman"
         self.font_size = 18
 
         self.layout_margins = 8
@@ -50,14 +50,14 @@ class TreeVisualizer(QWidget):
         self.translation = [0, 0]
 
         # for moving the nodes
-        self.node_rotation_angle = 20
+        self.node_rotation_angle = 15
 
         # TIMERS
         # runs the simulation 60 times a second (1000/60 ~= 16ms)
         self.simulation_timer = QTimer(interval=16, timeout=self.perform_simulation_iteration)
 
         # WIDGETS
-        self.canvas = QFrame(self, minimumSize=QSize(600, 600))
+        self.canvas = QFrame(self, minimumSize=QSize(0, 400))
         self.canvas_size = (self.canvas.width(), self.canvas.height())
         self.canvas.resizeEvent = self.adjust_canvas_translation
 
