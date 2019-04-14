@@ -88,6 +88,10 @@ class Graph:
         """Returns True if the graph is weighted and False otherwise."""
         return self.weighted
 
+    def get_weight(self, n1, n2):
+        """Returns the weight of the specified vertex."""
+        return self.nodes[self.nodes.index(n1)].neighbours[n2]
+
     def set_weighted(self, weighted):
         """Sets, whether the graph is weighted or not."""
         self.weighted = weighted

@@ -21,6 +21,10 @@ class TreeVisualizer(QWidget):
         self.graph = Graph()
         self.selected_node = None
 
+        # for locating and selecting vertices
+        self.vertex_positions = []
+        self.selected_vertex = None
+
         # offset of the mouse from the position of the currently dragged node
         self.mouse_drag_offset = None
 
@@ -30,7 +34,7 @@ class TreeVisualizer(QWidget):
 
         # variables for visualizing the graph
         self.node_radius = 20
-        self.weight_rectangle_radius = self.node_radius / 3
+        self.weight_rectangle_size = self.node_radius / 3
 
         self.arrowhead_size = 4
         self.arrow_separation = pi / 6
@@ -68,11 +72,12 @@ class TreeVisualizer(QWidget):
 
         # for editing the labels of the nodes
         self.labels_checkbox = QCheckBox(text="labels")
-        self.labels_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
-                                          textChanged=self.update_selected_node_label)
 
         # for setting, whether the graph is weighted or not
         self.weighted_checkbox = QCheckBox(text="weighted", clicked=self.set_weighted_graph)
+
+        self.input_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
+                                         textChanged=self.input_line_edit_changed)
 
         # for displaying information about the app
         self.about_button = QPushButton(text="?", clicked=self.show_help)
@@ -90,7 +95,8 @@ class TreeVisualizer(QWidget):
         self.option_h_layout.addWidget(self.weighted_checkbox)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.labels_checkbox)
-        self.option_h_layout.addWidget(self.labels_line_edit)
+        self.option_h_layout.addSpacing(self.layout_item_spacing)
+        self.option_h_layout.addWidget(self.input_line_edit)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.about_button)
 
@@ -237,32 +243,60 @@ class TreeVisualizer(QWidget):
         """Changes the text of the oriented toggle button, according to the orientation of the graph."""
         self.oriented_toggle_button.setText("directed" if self.graph.is_oriented() else "undirected")
 
-    def update_selected_node_label(self, text):
-        """Is called when the labels line edit changes; changes the label of the currently selected node (if the name
-        is valid)."""
-        palette = self.labels_line_edit.palette()
+    def input_line_edit_changed(self, text):
+        """Is called when the input line edit changes; changes either the label of the node selected node, or the value
+        of the selected vertex."""
+        palette = self.input_line_edit.palette()
 
-        # the text has to be non-zero and not contain spaces, for the import/export language to work
-        # the text length is also restricted, for rendering purposes
-        if 0 < len(text) < self.word_limit and " " not in text:
-            self.selected_node.set_label(text)
-            palette.setColor(self.labels_line_edit.backgroundRole(), Qt.white)
-        else:
-            palette.setColor(self.labels_line_edit.backgroundRole(), Qt.red)
+        if self.selected_node is not None:
+            # the text has to be non-zero and not contain spaces, for the import/export language to work
+            # the text length is also restricted, for rendering purposes
+            if 0 < len(text) < self.word_limit and " " not in text:
+                self.selected_node.set_label(text)
+                palette.setColor(self.input_line_edit.backgroundRole(), Qt.white)
+            else:
+                palette.setColor(self.input_line_edit.backgroundRole(), Qt.red)
+        elif self.selected_vertex is not None:
+            # try to parse the input text as a number
+            weight = None
+            try:
+                weight = int(text)
+            except ValueError:
+                try:
+                    weight = float(text)
+                except ValueError:
+                    pass
 
-        self.labels_line_edit.setPalette(palette)
+            # if the parsing was unsuccessful, set the input line edit background to red to indicate this
+            if weight is None:
+                palette.setColor(self.input_line_edit.backgroundRole(), Qt.red)
+            else:
+                self.graph.add_vertex(self.selected_vertex[0], self.selected_vertex[1], weight)
+                palette.setColor(self.input_line_edit.backgroundRole(), Qt.white)
+
+        self.input_line_edit.setPalette(palette)
 
     def select_node(self, node):
-        """Sets the selected node to the specified node, changes the text in labels line edit to its label and
-        enables it."""
+        """Sets the selected node to the specified node, sets the input line edit to its label and enables it."""
         self.selected_node = node
-        self.labels_line_edit.setText(node.get_label())
-        self.labels_line_edit.setEnabled(True)
+        self.input_line_edit.setText(node.get_label())
+        self.input_line_edit.setEnabled(True)
 
     def deselect_node(self):
-        """Sets the selected node to None and disables the labels line edit."""
+        """Sets the selected node to None and disables the input line edit."""
         self.selected_node = None
-        self.labels_line_edit.setEnabled(False)
+        self.input_line_edit.setEnabled(False)
+
+    def select_vertex(self, vertex):
+        """Sets the selected vertex to the specified vertex, sets the input line edit to its weight and enables it."""
+        self.selected_vertex = vertex
+        self.input_line_edit.setText(str(self.graph.get_weight(*vertex)))
+        self.input_line_edit.setEnabled(True)
+
+    def deselect_vertex(self):
+        """Sets the selected vertex to None and disables the input line edit."""
+        self.selected_vertex = None
+        self.input_line_edit.setEnabled(False)
 
     def keyPressEvent(self, event):
         """Is called when a key is pressed on the keyboard; deletes vertices."""
@@ -292,18 +326,28 @@ class TreeVisualizer(QWidget):
                 pressed_node = node
                 break
 
+        # (potentially) find a vertex that has been pressed
+        pressed_vertex = None
+        for vertex in self.vertex_positions:
+            if abs(vertex[0] - x) < self.weight_rectangle_size and abs(vertex[1] - y) < self.weight_rectangle_size:
+                pressed_vertex = vertex[2]
+
         # select/move node on left click
         # create new node/make a new connection on right click
         if event.button() == Qt.LeftButton:
             if pressed_node is not None:
-                # select and move the node if it isn't already selected; else de-select it
+                self.deselect_vertex()
                 self.select_node(pressed_node)
 
                 self.mouse_drag_offset = (x - self.selected_node.get_x(), y - self.selected_node.get_y())
                 self.mouse_x = x
                 self.mouse_y = y
+            elif pressed_vertex is not None:
+                self.deselect_node()
+                self.select_vertex(pressed_vertex)
             else:
                 self.deselect_node()
+                self.deselect_vertex()
         elif event.button() == Qt.RightButton:
             # either make/remove a connection, or create a new node
             if pressed_node is not None:
@@ -472,6 +516,10 @@ class TreeVisualizer(QWidget):
         painter.translate(self.translation[0], self.translation[1])
         painter.scale(self.scale, self.scale)
 
+        # if the graph is weighted, reset the positions, since they will be re-drawn later on
+        if self.graph.is_weighted():
+            self.vertex_positions = []
+
         # draw vertices; has to be drawn before nodes, so they aren't drawn on top of them
         for node in self.graph.get_nodes():
             for neighbour, weight in node.get_neighbours().items():
@@ -523,7 +571,11 @@ class TreeVisualizer(QWidget):
                         x_middle -= ux * r * (1 - cos(self.arrow_separation))
                         y_middle -= uy * r * (1 - cos(self.arrow_separation))
 
-                    r = self.weight_rectangle_radius
+                    r = self.weight_rectangle_size
+
+                    # remember the coordinate to select it later; in case of undirected graphs, only remember it once
+                    if self.graph.is_oriented() or id(node) < id(neighbour):
+                        self.vertex_positions.append((x_middle, y_middle, (node, neighbour)))
 
                     # draw the rectangle for the vertex
                     painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
