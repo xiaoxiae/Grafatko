@@ -67,7 +67,7 @@ class TreeVisualizer(QWidget):
 
         # WIDGETS
         self.canvas = QFrame(self, minimumSize=QSize(0, 400))
-        self.canvas_size = (self.canvas.width(), self.canvas.height())
+        self.canvas_size = None
         self.canvas.resizeEvent = self.adjust_canvas_translation
 
         # for toggling between oriented/undirected graphs
@@ -131,8 +131,10 @@ class TreeVisualizer(QWidget):
         """Is called when the canvas widget is resized; changes translation so the center stays in the center."""
         size = (event.size().width(), event.size().height())
 
-        self.translation[0] += self.scale * (size[0] - self.canvas_size[0]) / 2
-        self.translation[1] += self.scale * (size[1] - self.canvas_size[1]) / 2
+        # don't translate on the initial resize
+        if self.canvas_size is not None:
+            self.translation[0] += self.scale * (size[0] - self.canvas_size[0]) / 2
+            self.translation[1] += self.scale * (size[1] - self.canvas_size[1]) / 2
 
         self.canvas_size = size
 
