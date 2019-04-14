@@ -71,6 +71,43 @@ class Graph:
         self.nodes = []
         self.oriented = oriented
 
+        # for storing sets of nodes that are connected to each other
+        # helpful for calculating forces and moving connected nodes
+        self.continuity_sets = []
+
+    def calculate_continuity_sets(self):
+        """Calculates sets of nodes that are connected."""
+        self.continuity_sets = []
+
+        for node in self.nodes:
+            # the set of all connected nodes
+            working_set = set([node] + node.neighbours)
+
+            # attempt to merge the working set with an already existing set
+            i = 0
+            while i < len(self.continuity_sets):
+                existing_set = self.continuity_sets[i]
+
+                if len(existing_set.intersection(working_set)) != 0:
+                    existing_set |= working_set
+                    break
+
+                i += 1
+
+            # if no merge occurred, we have a new working set
+            if i == len(self.continuity_sets):
+                self.continuity_sets.append(working_set)
+
+    def share_continuity_set(self, n1, n2):
+        """Returns True if both of the nodes are in the same continuity set."""
+        for s in self.continuity_sets:
+            n1_in_s, n2_in_s = n1 in s, n2 in s
+
+            if n1_in_s and n2_in_s:
+                return True
+            elif n1_in_s or n2_in_s:
+                return False
+
     def is_oriented(self):
         """Returns True if the graph is oriented and False otherwise."""
         return self.oriented
@@ -110,6 +147,8 @@ class Graph:
         node = Node(x, y, radius, name if name is not None else self.generate_label())
         self.nodes.append(node)
 
+        self.calculate_continuity_sets()
+
         return node
 
     def delete_node(self, node_to_remove):
@@ -124,6 +163,8 @@ class Graph:
             except ValueError:
                 pass
 
+        self.calculate_continuity_sets()
+
     def add_vertex(self, n1, n2):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
         vertex doesn't already exist. Takes O(number of nodes)."""
@@ -134,6 +175,8 @@ class Graph:
         # from n2 to n1
         if not self.oriented and n1 not in n2.neighbours:
             n2.neighbours.append(n1)
+
+        self.calculate_continuity_sets()
 
     def does_vertex_exist(self, n1, n2, ignore_orientation=False):
         """Returns True if a vertex exists between the two nodes and False otherwise. Takes O(number of nodes)."""
@@ -149,3 +192,5 @@ class Graph:
         # from n2 to n1
         if not self.oriented and n1 in n2.neighbours:
             n2.neighbours.remove(n1)
+
+        self.calculate_continuity_sets()

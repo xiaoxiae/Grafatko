@@ -356,7 +356,8 @@ class TreeVisualizer(QWidget):
         angle = radians(angle)
 
         for node in self.graph.get_nodes():
-            if node is not self.selected_node:
+            # only rotate points that are in the same continuity set
+            if node is not self.selected_node and self.graph.share_continuity_set(node, self.selected_node):
                 # translate the coordinates to origin for the rotation to work
                 node_x, node_y = node.get_x() - x, node.get_y() - y
 
@@ -392,6 +393,10 @@ class TreeVisualizer(QWidget):
             n1 = self.graph.get_nodes()[i]
             for j in range(i + 1, len(self.graph.get_nodes())):
                 n2 = self.graph.get_nodes()[j]
+
+                # if they are not in the same continuity set, no forces act on them
+                if not self.graph.share_continuity_set(n1, n2):
+                    continue
 
                 # calculate the distance of the nodes and a unit vector from the first to the second
                 d = self.distance(n1.get_x(), n1.get_y(), n2.get_x(), n2.get_y())
@@ -429,13 +434,13 @@ class TreeVisualizer(QWidget):
             self.selected_node.set_x(self.mouse_x - self.mouse_drag_offset[0])
             self.selected_node.set_y(self.mouse_y - self.mouse_drag_offset[1])
 
-            # move all of the nodes if shift is pressed
+            # move the rest of the nodes that are connected to the selected node if shift is pressed
             if QApplication.keyboardModifiers() == Qt.ShiftModifier:
                 x_delta = self.selected_node.get_x() - prev_x
                 y_delta = self.selected_node.get_y() - prev_y
 
                 for node in self.graph.get_nodes():
-                    if node is not self.selected_node:
+                    if node is not self.selected_node and self.graph.share_continuity_set(node, self.selected_node):
                         node.set_x(node.get_x() + x_delta)
                         node.set_y(node.get_y() + y_delta)
 
