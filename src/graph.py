@@ -82,7 +82,7 @@ class Graph:
 
         for node in self.nodes:
             # the set of all connected nodes
-            working_set = set([node] + node.neighbours)
+            working_set = set([node] + list(node.neighbours))
 
             # attempt to merge the working set with an already existing set
             i = 0
