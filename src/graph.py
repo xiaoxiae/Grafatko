@@ -11,7 +11,7 @@ class Node:
         self.label = label
 
         # neighbours of the node
-        self.neighbours = []
+        self.neighbours = {}
 
         # the list of forces acting on the node
         self.forces = []
@@ -67,9 +67,10 @@ class Node:
 class Graph:
     """A class for working with physical representations of a graph."""
 
-    def __init__(self, oriented=False):
+    def __init__(self, oriented=False, weighted=False):
         self.nodes = []
         self.oriented = oriented
+        self.weighted = weighted
 
         # for storing sets of nodes that are connected to each other
         # helpful for calculating forces and moving connected nodes
@@ -120,11 +121,23 @@ class Graph:
 
         self.oriented = oriented
 
+    def is_weighted(self):
+        """Returns True if the graph is weighted and False otherwise."""
+        return self.weighted
+
+    def get_weight(self, n1, n2):
+        """Returns the weight of the specified vertex."""
+        return self.nodes[self.nodes.index(n1)].neighbours[n2]
+
+    def set_weighted(self, weighted):
+        """Sets, whether the graph is weighted or not."""
+        self.weighted = weighted
+
     def _convert_from_oriented(self):
         """Converts each of the vertices of the graph to go both ways. Takes O(number of nodes * number of vertices)."""
         for node in self.get_nodes():
             for neighbour in node.get_neighbours():
-                self.add_vertex(neighbour, node)
+                self.add_vertex(neighbour, node, weight=0)
 
     def get_nodes(self):
         """Returns a list of nodes of the graph."""
@@ -158,23 +171,20 @@ class Graph:
 
         # remove all of its vertices
         for node in self.get_nodes():
-            try:
-                node.get_neighbours().remove(node_to_remove)
-            except ValueError:
-                pass
+            if node_to_remove in node.neighbours:
+                del node.get_neighbours()[node_to_remove]
 
         self.calculate_continuity_sets()
 
-    def add_vertex(self, n1, n2):
+    def add_vertex(self, n1, n2, weight=0):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not oriented). Only does so if the given
         vertex doesn't already exist. Takes O(number of nodes)."""
         # from n1 to n2
-        if n2 not in n1.neighbours:
-            n1.neighbours.append(n2)
+        n1.neighbours[n2] = weight
 
         # from n2 to n1
-        if not self.oriented and n1 not in n2.neighbours:
-            n2.neighbours.append(n1)
+        if not self.oriented:
+            n2.neighbours[n1] = weight
 
         self.calculate_continuity_sets()
 
@@ -187,10 +197,10 @@ class Graph:
         vertex exists. Takes O(number of nodes)."""
         # from n1 to n2
         if n2 in n1.neighbours:
-            n1.neighbours.remove(n2)
+            del n1.neighbours[n2]
 
         # from n2 to n1
         if not self.oriented and n1 in n2.neighbours:
-            n2.neighbours.remove(n1)
+            del n2.neighbours[n1]
 
         self.calculate_continuity_sets()
