@@ -153,14 +153,10 @@ class Graph:
         """Returns a list of nodes of the graph."""
         return self.nodes
 
-    def __len__(self):
-        """Define a length of the graph object as the number of nodes."""
-        return len(self.get_nodes())
-
     def generate_label(self):
         """Returns a node label, based on the number of nodes in the tree in the form of A, B, C, ..., AA, AB, AC ...
         Note that the label is not meant to be an unique identifier!"""
-        n = self.__len__()
+        n = len(self.nodes)
         label = "A" * (n // 26) + chr(65 + n % 26)
 
         return label
