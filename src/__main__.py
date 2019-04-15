@@ -3,7 +3,7 @@ from math import sqrt, cos, sin, radians, pi
 from random import random
 
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
-from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
+from PyQt5.QtGui import QPainter, QBrush, QPen, QFont, QIcon
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, \
     QPushButton, QMessageBox, QFileDialog, QSizePolicy
 
@@ -124,6 +124,7 @@ class TreeVisualizer(QWidget):
         # WINDOW SETTINGS
         self.setWindowTitle('Graph Visualizer')
         self.setFont(QFont(self.font_family, self.font_size))
+        self.setWindowIcon(QIcon("icon.ico"))
         self.show()
 
         # start the simulation
