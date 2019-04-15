@@ -21,7 +21,6 @@ class TreeVisualizer(QWidget):
         self.graph = Graph()
         self.selected_node = None
 
-        # for locating and selecting vertices
         self.vertex_positions = []
         self.selected_vertex = None
 
@@ -40,11 +39,11 @@ class TreeVisualizer(QWidget):
         self.arrow_separation = pi / 7
 
         self.selected_color = Qt.red
-
         self.regular_node_color = Qt.white
         self.regular_vertex_weight_color = Qt.black
 
-        self.word_limit = 10  # limit the displayed length of words for each node
+        # limit the displayed length of labels for each node
+        self.node_label_limit = 10
 
         # UI variables
         self.font_family = "Times New Roman"
@@ -58,7 +57,7 @@ class TreeVisualizer(QWidget):
         self.scale_coefficient = 1.1  # by how much the scale changes on scroll
         self.translation = [0, 0]
 
-        # for moving the nodes
+        # angle (in degrees) by which all of the nodes rotate
         self.node_rotation_angle = 15
 
         # TIMERS
@@ -70,26 +69,27 @@ class TreeVisualizer(QWidget):
         self.canvas_size = None
         self.canvas.resizeEvent = self.adjust_canvas_translation
 
-        # for toggling between oriented/undirected graphs
-        self.oriented_toggle_button = QPushButton(text="undirected",
-                                                  clicked=self.toggle_graph_orientation)
+        # toggles between directed/undirected graphs
+        self.directed_toggle_button = QPushButton(text="undirected", clicked=self.toggle_directed_graph)
 
         # for showing the labels of the nodes
         self.labels_checkbox = QCheckBox(text="labels")
 
-        # for setting, whether the graph is weighted or not
+        # sets, whether the graph is weighted or not
         self.weighted_checkbox = QCheckBox(text="weighted", clicked=self.set_weighted_graph)
 
-        # for enabling/disabling forces
+        # enables/disables forces (True by default - they're fun!)
         self.forces_checkbox = QCheckBox(text="forces", checked=True)
 
+        # input of the labels and vertex weights
         self.input_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
                                          textChanged=self.input_line_edit_changed)
 
-        # for displaying information about the app
+        # displays information about the app
         self.about_button = QPushButton(text="?", clicked=self.show_help,
                                         sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
 
+        # imports/exports the current graph
         self.import_graph_button = QPushButton(text="import", clicked=self.import_graph)
         self.export_graph_button = QPushButton(text="export", clicked=self.export_graph)
 
@@ -98,7 +98,7 @@ class TreeVisualizer(QWidget):
         self.main_v_layout.addWidget(self.canvas)
 
         self.option_h_layout = QHBoxLayout(self, margin=self.layout_margins)
-        self.option_h_layout.addWidget(self.oriented_toggle_button)
+        self.option_h_layout.addWidget(self.directed_toggle_button)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.weighted_checkbox)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
@@ -165,11 +165,11 @@ class TreeVisualizer(QWidget):
                     sample = data[0].split(" ")
                     vertex_types = ["->", "<", "<>"]
 
-                    oriented = True if sample[1] in vertex_types else False
-                    weighted = False if len(sample) == 2 or oriented and len(sample) == 3 else True
+                    # whether the graph is directed and weighted; done by looking at a sample input vertex
+                    directed = True if sample[1] in vertex_types else False
+                    weighted = False if len(sample) == 2 or directed and len(sample) == 3 else True
 
-                    # the properties of the graph are, determined from one of the vertex descriptions
-                    graph = Graph(oriented=oriented, weighted=weighted)
+                    graph = Graph(directed=directed, weighted=weighted)
 
                     # to remember the created nodes and to connect them later
                     node_dictionary = {}
@@ -181,18 +181,18 @@ class TreeVisualizer(QWidget):
                         # the formats are either 'A B' or 'A ... B', where ... is one of the vertex types
                         nodes = [
                             vertex_components[0],
-                            vertex_components[2] if oriented else vertex_components[1]
+                            vertex_components[2] if directed else vertex_components[1]
                         ]
 
                         # if weights are present, the formats are either 'A B num' or 'A ... B num (num)'
                         weights_strings = None if not weighted else [
-                            vertex_components[2] if not oriented else vertex_components[3],
-                            None if not oriented or vertex_components[1] != vertex_types[2] else vertex_components[4]
+                            vertex_components[2] if not directed else vertex_components[3],
+                            None if not directed or vertex_components[1] != vertex_types[2] else vertex_components[4]
                         ]
 
                         for node in nodes:
                             if node not in node_dictionary:
-                                # slightly randomize the coordinates so the graph doesn't stay in one place forever
+                                # slightly randomize the coordinates so the graph doesn't stay in one place
                                 x = self.canvas.width() / 2 + (random() - 0.5)
                                 y = self.canvas.height() / 2 + (random() - 0.5)
 
@@ -203,7 +203,7 @@ class TreeVisualizer(QWidget):
                         n1, n2 = node_dictionary[nodes[0]], node_dictionary[nodes[1]]
 
                         # export the graph, according to the direction of the vertex, and whether it's weighted or not
-                        if not oriented or vertex_components[1] == "->":
+                        if not directed or vertex_components[1] == "->":
                             if weighted:
                                 graph.add_vertex(n1, n2, self._convert_string_to_number(weights_strings[0]))
                             else:
@@ -237,16 +237,16 @@ class TreeVisualizer(QWidget):
             self.set_checkbox_values()
 
     def _convert_string_to_number(self, str):
-        """Attempts to convert the specified string to a number. THROWS ERROR IF IT FAILS TO DO SO!"""
+        """Attempts to convert the specified string to a number. Throws error if it fails to do so!"""
         try:
             return int(str)
         except ValueError:
             return float(str)
 
     def set_checkbox_values(self):
-        """Sets the values of the checkboxes, depending on the type of graph."""
+        """Sets the values of the checkboxes from the graph."""
         self.weighted_checkbox.setChecked(self.graph.is_weighted())
-        self.set_toggle_button_text()
+        self.update_directed_toggle_button_text()
 
     def export_graph(self):
         """Is called when the export button is clicked; exports a graph to a file."""
@@ -255,7 +255,6 @@ class TreeVisualizer(QWidget):
         if path != "":
             try:
                 with open(path, "w") as file:
-
                     # look at every pair of nodes and examine the vertices
                     for i in range(len(self.graph.get_nodes())):
                         n1 = self.graph.get_nodes()[i]
@@ -264,11 +263,10 @@ class TreeVisualizer(QWidget):
 
                             v1_exists = self.graph.does_vertex_exist(n1, n2)
 
-                            # the weight is an empty string, if...
                             w1_value = self.graph.get_weight(n1, n2)
                             w1 = "" if not self.graph.is_weighted() or w1_value is None else str(w1_value)
 
-                            if not self.graph.is_oriented() and v1_exists:
+                            if not self.graph.is_directed() and v1_exists:
                                 # for undirected graphs, no direction symbols are necessary
                                 file.write(n1.get_label() + " " + n2.get_label() + " " + w1 + "\n")
                             else:
@@ -277,6 +275,8 @@ class TreeVisualizer(QWidget):
                                 w2_value = self.graph.get_weight(n2, n1)
                                 w2 = "" if not self.graph.is_weighted() or w2_value is None else str(w2_value)
 
+                                # node that w1 and w2 might be empty strings, so we can combine
+                                # directed weighted and unweighted graphs in one command
                                 if v1_exists and v2_exists:
                                     file.write("%s <> %s %s %s\n" % (n1.get_label(), n2.get_label(), str(w1), str(w2)))
                                 elif v1_exists:
@@ -285,7 +285,7 @@ class TreeVisualizer(QWidget):
                                     file.write("%s <- %s %s\n" % (n1.get_label(), n2.get_label(), str(w2)))
             except Exception:
                 QMessageBox.critical(self, "Error!", "An error occurred when exporting the graph. Make sure that you "
-                                                     "have permission to write to the specified file!")
+                                                     "have permission to write to the specified file and try again!")
 
     def show_help(self):
         """Is called when the help button is clicked; displays basic information about the application."""
@@ -310,14 +310,14 @@ class TreeVisualizer(QWidget):
 
         QMessageBox.information(self, "About", message)
 
-    def toggle_graph_orientation(self):
-        """Is called when the oriented checkbox changes; toggles the orientation of the graph."""
-        self.graph.set_oriented(not self.graph.is_oriented())
-        self.set_toggle_button_text()
+    def toggle_directed_graph(self):
+        """Is called when the directed checkbox changes; toggles between directed and undirected graphs."""
+        self.graph.set_directed(not self.graph.is_directed())
+        self.update_directed_toggle_button_text()
 
-    def set_toggle_button_text(self):
-        """Changes the text of the oriented toggle button, according to the orientation of the graph."""
-        self.oriented_toggle_button.setText("directed" if self.graph.is_oriented() else "undirected")
+    def update_directed_toggle_button_text(self):
+        """Changes the text of the directed toggle button, according to whether the graph is directer or not."""
+        self.directed_toggle_button.setText("directed" if self.graph.is_directed() else "undirected")
 
     def input_line_edit_changed(self, text):
         """Is called when the input line edit changes; changes either the label of the node selected node, or the value
@@ -325,15 +325,15 @@ class TreeVisualizer(QWidget):
         palette = self.input_line_edit.palette()
 
         if self.selected_node is not None:
-            # the text has to be non-zero and not contain spaces, for the import/export language to work
+            # the text has to be non-zero and not contain spaces, for the import/export language to work properly
             # the text length is also restricted, for rendering purposes
-            if 0 < len(text) < self.word_limit and " " not in text:
+            if 0 < len(text) < self.node_label_limit and " " not in text:
                 self.selected_node.set_label(text)
                 palette.setColor(self.input_line_edit.backgroundRole(), Qt.white)
             else:
                 palette.setColor(self.input_line_edit.backgroundRole(), Qt.red)
         elif self.selected_vertex is not None:
-            # try to parse the input text as a number
+            # try to parse the input text either as an integer, or as a float
             weight = None
             try:
                 weight = int(text)
@@ -343,7 +343,8 @@ class TreeVisualizer(QWidget):
                 except ValueError:
                     pass
 
-            # if the parsing was unsuccessful, set the input line edit background to red to indicate this
+            # if the parsing was unsuccessful, set the input line edit background to red to indicate this fact
+            # if it worked, set the weight by adding a new vertex with the input weight
             if weight is None:
                 palette.setColor(self.input_line_edit.backgroundRole(), Qt.red)
             else:
@@ -355,6 +356,7 @@ class TreeVisualizer(QWidget):
     def select_node(self, node):
         """Sets the selected node to the specified node, sets the input line edit to its label and enables it."""
         self.selected_node = node
+
         self.input_line_edit.setText(node.get_label())
         self.input_line_edit.setEnabled(True)
         self.input_line_edit.setFocus()
@@ -367,6 +369,7 @@ class TreeVisualizer(QWidget):
     def select_vertex(self, vertex):
         """Sets the selected vertex to the specified vertex, sets the input line edit to its weight and enables it."""
         self.selected_vertex = vertex
+
         self.input_line_edit.setText(str(self.graph.get_weight(*vertex)))
         self.input_line_edit.setEnabled(True)
         self.input_line_edit.setFocus()
@@ -380,7 +383,7 @@ class TreeVisualizer(QWidget):
         """Is called when a key is pressed on the keyboard; deletes vertices."""
         if event.key() == Qt.Key_Escape:
             if self.selected_node is not None:
-                self.graph.delete_node(self.selected_node)
+                self.graph.remove_node(self.selected_node)
                 self.deselect_node()
             if self.selected_vertex is not None:
                 self.graph.remove_vertex(self.selected_vertex[0], self.selected_vertex[1])
@@ -410,12 +413,14 @@ class TreeVisualizer(QWidget):
         # (potentially) find a vertex that has been pressed
         pressed_vertex = None
         for vertex in self.vertex_positions:
+            # vertex position items have the structure [x, y, (n1, n2)]
             if abs(vertex[0] - x) < self.weight_rectangle_size and abs(vertex[1] - y) < self.weight_rectangle_size:
                 pressed_vertex = vertex[2]
 
-        # select/move node on left click
-        # create new node/make a new connection on right click
+        # select on left click
+        # create/connect on right click
         if event.button() == Qt.LeftButton:
+            # nodes have the priority in selection before vertices
             if pressed_node is not None:
                 self.deselect_vertex()
                 self.select_node(pressed_node)
@@ -430,7 +435,7 @@ class TreeVisualizer(QWidget):
                 self.deselect_node()
                 self.deselect_vertex()
         elif event.button() == Qt.RightButton:
-            # either make/remove a connection, or create a new node
+            # either make/remove a connection if we right clicked a node, or create a new node if we haven't
             if pressed_node is not None:
                 if self.selected_node is not None and pressed_node is not self.selected_node:
                     # if a connection does not exist between the nodes, create it; otherwise remove it
@@ -448,7 +453,7 @@ class TreeVisualizer(QWidget):
                 self.select_node(node)
 
     def mouseReleaseEvent(self, event):
-        """Is called when a mouse button is released; stops the drag."""
+        """Is called when a mouse button is released; stops node drag."""
         self.mouse_drag_offset = None
 
     def mouseMoveEvent(self, event):
@@ -459,10 +464,10 @@ class TreeVisualizer(QWidget):
         self.mouse_y = mouse_coordinates[1]
 
     def wheelEvent(self, event):
-        """Is called when the mouse wheel is moved; controls the zoom and node rotation."""
+        """Is called when the mouse wheel is moved; node rotation and zoom."""
         if QApplication.keyboardModifiers() == Qt.ShiftModifier:
             if self.selected_node is not None:
-                # positive/negative for scrolling away and towards the user
+                # positive/negative for scrolling away from/towards the user
                 angle = self.node_rotation_angle if event.angleDelta().y() > 0 else -self.node_rotation_angle
 
                 self.rotate_nodes_around(self.selected_node.get_x(), self.selected_node.get_y(), angle)
@@ -483,7 +488,7 @@ class TreeVisualizer(QWidget):
             else:
                 self.scale *= self.scale_coefficient
 
-            # adjust translation so the x and y of the mouse remains the same
+            # adjust translation so the x and y of the mouse stay in the same spot
             scale_delta = self.scale - prev_scale
             self.translation[0] += -(x * scale_delta)
             self.translation[1] += -(y * scale_delta)
@@ -494,7 +499,7 @@ class TreeVisualizer(QWidget):
 
         for node in self.graph.get_nodes():
             # only rotate points that are in the same continuity set
-            if node is not self.selected_node and self.graph.share_continuity_set(node, self.selected_node):
+            if self.graph.share_continuity_set(node, self.selected_node):
                 # translate the coordinates to origin for the rotation to work
                 node_x, node_y = node.get_x() - x, node.get_y() - y
 
@@ -503,16 +508,17 @@ class TreeVisualizer(QWidget):
                 node.set_y(node_x * sin(angle) + node_y * cos(angle) + y)
 
     def get_mouse_coordinates(self, event, scale_down=False):
-        """Returns mouse coordinates if they are within the canvas and None if they are not. If scale_down is True, the
-        function will scale down the coordinates to be within the canvas (useful for dragging) and return them."""
+        """Returns mouse coordinates if they are within the canvas and None if they are not.
+        If scale_down is True, the function will scale down the coordinates to be within the canvas (useful for
+        dragging) and return them instead."""
         x = event.pos().x()
         y = event.pos().y()
 
-        # whether the coordinate components are on canvas
+        # booleans for whether the coordinate components are on canvas
         x_on_canvas = 0 <= x <= self.canvas.width()
         y_on_canvas = 0 <= y <= self.canvas.height()
 
-        # return if scale_down is True, scale down the coordinates so they're on canvas
+        # scale down the coordinates if scale_down is True, or return none if we are not on canvas
         if scale_down:
             x = x if x_on_canvas else 0 if x <= 0 else self.canvas.width()
             y = y if y_on_canvas else 0 if y <= 0 else self.canvas.height()
@@ -551,8 +557,8 @@ class TreeVisualizer(QWidget):
                 n1.add_force((-ux * fr, -uy * fr))
                 n2.add_force((ux * fr, uy * fr))
 
-                # if they are connected, add the leash force, regardless of whether the graph is oriented or not
-                if self.graph.does_vertex_exist(n1, n2, ignore_orientation=True):
+                # if they are connected, add the leash force, regardless of whether the graph is directed or not
+                if self.graph.does_vertex_exist(n1, n2, ignore_direction=True):
                     # the size of the attraction force between the two nodes
                     fa = self.attraction_force(d)
 
@@ -563,7 +569,7 @@ class TreeVisualizer(QWidget):
             # since this node will not be visited again, evaluate the forces
             n1.evaluate_forces()
 
-        # drag the selected node
+        # drag the selected node, after all of the forces have been applied, so it doesn't move anymore
         if self.selected_node is not None and self.mouse_drag_offset is not None:
             prev_x = self.selected_node.get_x()
             prev_y = self.selected_node.get_y()
@@ -571,7 +577,7 @@ class TreeVisualizer(QWidget):
             self.selected_node.set_x(self.mouse_x - self.mouse_drag_offset[0])
             self.selected_node.set_y(self.mouse_y - self.mouse_drag_offset[1])
 
-            # move the rest of the nodes that are connected to the selected node if shift is pressed
+            # move the rest of the nodes that are connected to the selected node, if shift is pressed
             if QApplication.keyboardModifiers() == Qt.ShiftModifier:
                 x_delta = self.selected_node.get_x() - prev_x
                 y_delta = self.selected_node.get_y() - prev_y
@@ -592,13 +598,13 @@ class TreeVisualizer(QWidget):
         painter.setPen(QPen(Qt.black, Qt.SolidLine))
         painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
 
-        # bound the area to only draw on canvas
+        # bound the canvas area to not draw outside of it
         painter.setClipRect(0, 0, self.canvas.width(), self.canvas.height())
 
         # draw the background
         painter.drawRect(0, 0, self.canvas.width(), self.canvas.height())
 
-        # reposition the painter
+        # transform and scale the painter accordingly
         painter.translate(self.translation[0], self.translation[1])
         painter.scale(self.scale, self.scale)
 
@@ -616,10 +622,10 @@ class TreeVisualizer(QWidget):
                 ux, uy = (x2 - x1) / d, (y2 - y1) / d
                 r = neighbour.get_radius()
 
-                # if it's oriented, draw an arrow
-                if self.graph.is_oriented():
-                    # in case there is a vertex going the other way, we will move the line up the circles, so
-                    # there is separation between the vertices
+                # if it's directed, draw the head of the arrow
+                if self.graph.is_directed():
+                    # in case there is a vertex going the other way, we will move the line up the circles by an angle,
+                    # so there is separation between the vertices
                     if self.graph.does_vertex_exist(neighbour, node):
                         nx = -uy * r * sin(self.arrow_separation) + ux * r * (1 - cos(self.arrow_separation))
                         ny = ux * r * sin(self.arrow_separation) + uy * r * (1 - cos(self.arrow_separation))
@@ -630,7 +636,7 @@ class TreeVisualizer(QWidget):
                     xa, ya = x1 + ux * (d - r), y1 + uy * (d - r)
 
                     # calculate the two remaining points of the arrow
-                    # this is done the same way as the previous calculation
+                    # this is done the same way as the previous calculation (shift by vector)
                     d = self.distance(x1, y1, xa, ya)
                     ux_arrow, uy_arrow = (xa - x1) / d, (ya - y1) / d
 
@@ -640,22 +646,22 @@ class TreeVisualizer(QWidget):
                     # the normal vectors to the unit vector of the arrow head
                     nx_arrow, ny_arrow = -uy_arrow, ux_arrow
 
+                    # draw the tip of the arrow, as the triangle
                     painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
                     painter.drawPolygon(QPoint(xa, ya),
                                         QPoint(x + nx_arrow * self.arrowhead_size, y + ny_arrow * self.arrowhead_size),
                                         QPoint(x - nx_arrow * self.arrowhead_size, y - ny_arrow * self.arrowhead_size))
 
                 # draw only one of the two vertices, if the graph is undirected
-                if self.graph.is_oriented() or id(node) < id(neighbour):
+                if self.graph.is_directed() or id(node) < id(neighbour):
                     painter.drawLine(x1, y1, x2, y2)
 
                     if self.graph.is_weighted():
-                        x_middle = (x2 + x1) / 2
-                        y_middle = (y2 + y1) / 2
+                        x_middle, y_middle = (x2 + x1) / 2, (y2 + y1) / 2
 
-                        # if the graph is oriented the vertices are offset (so they aren't draw on top of each other)
-                        # this makes it so that the vertex rectangle is drawn directly in the middle
-                        if self.graph.is_oriented():
+                        # if the graph is directed, the vertices are offset (so they aren't draw on top of each other),
+                        # so we need to shift them back to be at the midpoint between the nodes
+                        if self.graph.is_directed():
                             x_middle -= ux * r * (1 - cos(self.arrow_separation))
                             y_middle -= uy * r * (1 - cos(self.arrow_separation))
 
@@ -663,7 +669,7 @@ class TreeVisualizer(QWidget):
 
                         self.vertex_positions.append((x_middle, y_middle, (node, neighbour)))
 
-                        # make the rectangle background different, if it's selected (for aesthetics)
+                        # make the selected vertex rectangle background different, if it's selected (for aesthetics)
                         if self.selected_vertex is not None and node is self.selected_vertex[0] and neighbour is \
                                 self.selected_vertex[1]:
                             painter.setBrush(QBrush(self.selected_color, Qt.SolidPattern))
@@ -672,7 +678,7 @@ class TreeVisualizer(QWidget):
 
                         painter.drawRect(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r))
 
-                        # adjust the length so the minus sign doesn't make the number smaller
+                        # adjust the length of the weight string, so the minus sign doesn't make the number smaller
                         length = len(str(weight)) - (1 if weight < 0 else 0)
 
                         painter.setFont(QFont(self.font_family, self.font_size / (length * 3)))
@@ -690,7 +696,6 @@ class TreeVisualizer(QWidget):
             else:
                 painter.setBrush(QBrush(self.regular_node_color, Qt.SolidPattern))
 
-            # information about the node necessary for drawing
             x, y, r = node.get_x(), node.get_y(), node.get_radius()
 
             painter.drawEllipse(QPoint(x, y), r, r)
