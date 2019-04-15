@@ -382,6 +382,9 @@ class TreeVisualizer(QWidget):
             if self.selected_node is not None:
                 self.graph.delete_node(self.selected_node)
                 self.deselect_node()
+            if self.selected_vertex is not None:
+                self.graph.remove_vertex(self.selected_vertex[0], self.selected_vertex[1])
+                self.deselect_vertex()
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
