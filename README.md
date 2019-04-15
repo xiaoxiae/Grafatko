@@ -7,3 +7,6 @@ Before running the app, make sure to:
 - install the PyQt5 library by running `pip install pyqt5` in your terminal.
 
 To launch the app, run `__main__.py` using Python.
+
+## Sample Images
+![Sample Images](https://i.imgur.com/7GU4K6a.png)
