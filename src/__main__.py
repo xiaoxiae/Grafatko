@@ -485,9 +485,9 @@ class TreeVisualizer(QWidget):
             # adjust the canvas scale, depending on the scroll direction
             # if angleDelta.y() is positive, scroll away (zoom out) from the user (and vice versa)
             if event.angleDelta().y() > 0:
-                self.scale /= self.scale_coefficient
-            else:
                 self.scale *= self.scale_coefficient
+            else:
+                self.scale /= self.scale_coefficient
 
             # adjust translation so the x and y of the mouse stay in the same spot
             scale_delta = self.scale - prev_scale
