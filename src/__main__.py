@@ -301,7 +301,7 @@ class TreeVisualizer(QWidget):
             <li><em>Mouse Wheel</em> &ndash; zooms in/out</li>
             <li><em>Shift + Left Mouse Button</em> &ndash; moves connected nodes</li>
             <li><em>Shift + Mouse Wheel</em> &ndash; rotates nodes around the selected node<br /></li>
-            <li><em>Delete</em> &ndash; deletes the currently selected node</li>
+            <li><em>Escape</em> &ndash; deletes the currently selected node</li>
             </ul>
             <hr />
             <p>If you spot an issue, or would like to check out the source code, see the app's 
@@ -357,6 +357,7 @@ class TreeVisualizer(QWidget):
         self.selected_node = node
         self.input_line_edit.setText(node.get_label())
         self.input_line_edit.setEnabled(True)
+        self.input_line_edit.setFocus()
 
     def deselect_node(self):
         """Sets the selected node to None and disables the input line edit."""
@@ -368,6 +369,7 @@ class TreeVisualizer(QWidget):
         self.selected_vertex = vertex
         self.input_line_edit.setText(str(self.graph.get_weight(*vertex)))
         self.input_line_edit.setEnabled(True)
+        self.input_line_edit.setFocus()
 
     def deselect_vertex(self):
         """Sets the selected vertex to None and disables the input line edit."""
@@ -376,7 +378,7 @@ class TreeVisualizer(QWidget):
 
     def keyPressEvent(self, event):
         """Is called when a key is pressed on the keyboard; deletes vertices."""
-        if event.key() == Qt.Key_Delete:
+        if event.key() == Qt.Key_Escape:
             if self.selected_node is not None:
                 self.graph.delete_node(self.selected_node)
                 self.deselect_node()
