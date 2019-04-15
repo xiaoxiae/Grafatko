@@ -297,12 +297,11 @@ class TreeVisualizer(QWidget):
             <hr />
             <p>The controls are as follows:</p>
             <ul>
-            <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them around</li>
-            <li><em>Right Mouse Button</em> &ndash; creates new nodes and vertices</li>
+            <li><em>Left Mouse Button</em> &ndash; selects nodes and moves them</li>
+            <li><em>Right Mouse Button</em> &ndash; creates/removes nodes and vertices</li>
             <li><em>Mouse Wheel</em> &ndash; zooms in/out</li>
             <li><em>Shift + Left Mouse Button</em> &ndash; moves connected nodes</li>
-            <li><em>Shift + Mouse Wheel</em> &ndash; rotates nodes around the selected node<br /></li>
-            <li><em>Escape</em> &ndash; deletes the currently selected node</li>
+            <li><em>Shift + Mouse Wheel</em> &ndash; rotates nodes around the selected node</li>
             </ul>
             <hr />
             <p>If you spot an issue, or would like to check out the source code, see the app's 
@@ -380,16 +379,6 @@ class TreeVisualizer(QWidget):
         self.selected_vertex = None
         self.input_line_edit.setEnabled(False)
 
-    def keyPressEvent(self, event):
-        """Is called when a key is pressed on the keyboard; deletes vertices."""
-        if event.key() == Qt.Key_Escape:
-            if self.selected_node is not None:
-                self.graph.remove_node(self.selected_node)
-                self.deselect_node()
-            if self.selected_vertex is not None:
-                self.graph.remove_vertex(self.selected_vertex[0], self.selected_vertex[1])
-                self.deselect_vertex()
-
     def mousePressEvent(self, event):
         """Is called when a mouse button is pressed; creates and moves nodes/vertices."""
         mouse_coordinates = self.get_mouse_coordinates(event)
@@ -438,12 +427,20 @@ class TreeVisualizer(QWidget):
         elif event.button() == Qt.RightButton:
             # either make/remove a connection if we right clicked a node, or create a new node if we haven't
             if pressed_node is not None:
-                if self.selected_node is not None and pressed_node is not self.selected_node:
-                    # if a connection does not exist between the nodes, create it; otherwise remove it
-                    if self.graph.does_vertex_exist(self.selected_node, pressed_node):
-                        self.graph.remove_vertex(self.selected_node, pressed_node)
+                if self.selected_node is not None:
+                    if pressed_node is not self.selected_node:
+                        # if a connection does not exist between the nodes, create it; otherwise remove it
+                        if self.graph.does_vertex_exist(self.selected_node, pressed_node):
+                            self.graph.remove_vertex(self.selected_node, pressed_node)
+                        else:
+                            self.graph.add_vertex(self.selected_node, pressed_node)
                     else:
-                        self.graph.add_vertex(self.selected_node, pressed_node)
+                        self.graph.remove_node(self.selected_node)
+                        self.deselect_node()
+            elif pressed_vertex is not None:
+                if self.selected_vertex == pressed_vertex:
+                    self.graph.remove_vertex(*self.selected_vertex)
+                    self.deselect_vertex()
             else:
                 node = self.graph.add_node(x, y, self.node_radius)
 
@@ -452,6 +449,7 @@ class TreeVisualizer(QWidget):
                     self.graph.add_vertex(self.selected_node, node)
 
                 self.select_node(node)
+                self.deselect_vertex()
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released; stops node drag."""
