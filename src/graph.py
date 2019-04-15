@@ -81,22 +81,32 @@ class Graph:
         self.continuity_sets = []
 
         for node in self.nodes:
-            # the set of all connected nodes
+            # the current set of nodes that we know are reachable from one another
             working_set = set([node] + list(node.neighbours))
 
-            # attempt to merge the working set with an already existing set
+            # the index of the set that we added the working set to
+            set_index = None
+
             i = 0
             while i < len(self.continuity_sets):
                 existing_set = self.continuity_sets[i]
 
+                # if an intersection exists, perform set union
                 if len(existing_set.intersection(working_set)) != 0:
-                    existing_set |= working_set
-                    break
+                    # if this is the first set to be merged, don't pop it from the list
+                    # if we have already merged a set, it means that the working set joined two already existing sets
+                    if set_index is None:
+                        existing_set |= working_set
+                        set_index = i
+                        i += 1
+                    else:
+                        existing_set |= self.continuity_sets.pop(set_index)
+                        set_index = i
+                else:
+                    i += 1
 
-                i += 1
-
-            # if no merge occurred, we have a new working set
-            if i == len(self.continuity_sets):
+            # if we haven't performed any set merges, add the set to the continuity sets
+            if set_index is None:
                 self.continuity_sets.append(working_set)
 
     def share_continuity_set(self, n1, n2):
