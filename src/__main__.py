@@ -74,7 +74,7 @@ class TreeVisualizer(QWidget):
         self.oriented_toggle_button = QPushButton(text="undirected",
                                                   clicked=self.toggle_graph_orientation)
 
-        # for editing the labels of the nodes
+        # for showing the labels of the nodes
         self.labels_checkbox = QCheckBox(text="labels")
 
         # for setting, whether the graph is weighted or not
@@ -160,10 +160,16 @@ class TreeVisualizer(QWidget):
             try:
                 with open(path, "r") as file:
                     # a list of vertices of the graph
-                    data = file.read().splitlines()
+                    data = [line.strip() for line in file.read().splitlines()]
 
-                    # the graph will be oriented if the input data contains oriented vertices
-                    graph = Graph(oriented=True if len(data[0].split(" ")) == 3 else False)
+                    sample = data[0].split(" ")
+                    vertex_types = ["->", "<", "<>"]
+
+                    oriented = True if sample[1] in vertex_types else False
+                    weighted = False if len(sample) == 2 or oriented and len(sample) == 3 else True
+
+                    # the properties of the graph are, determined from one of the vertex descriptions
+                    graph = Graph(oriented=oriented, weighted=weighted)
 
                     # to remember the created nodes and to connect them later
                     node_dictionary = {}
@@ -171,7 +177,18 @@ class TreeVisualizer(QWidget):
                     # add each of the nodes of the vertex to the graph
                     for vertex in data:
                         vertex_components = vertex.split(" ")
-                        nodes = [vertex_components[0], vertex_components[-1]]
+
+                        # the formats are either 'A B' or 'A ... B', where ... is one of the vertex types
+                        nodes = [
+                            vertex_components[0],
+                            vertex_components[2] if oriented else vertex_components[1]
+                        ]
+
+                        # if weights are present, the formats are either 'A B num' or 'A ... B num (num)'
+                        weights_strings = None if not weighted else [
+                            vertex_components[2] if not oriented else vertex_components[3],
+                            None if not oriented or vertex_components[1] != vertex_types[2] else vertex_components[4]
+                        ]
 
                         for node in nodes:
                             if node not in node_dictionary:
@@ -182,23 +199,54 @@ class TreeVisualizer(QWidget):
                                 # add it to graph with default values
                                 node_dictionary[node] = graph.add_node(x, y, self.node_radius, node)
 
-                        if len(vertex_components) == 2 or vertex_components[1] == "->":
-                            graph.add_vertex(node_dictionary[nodes[0]], node_dictionary[nodes[1]])
+                        # get the node objects from the names
+                        n1, n2 = node_dictionary[nodes[0]], node_dictionary[nodes[1]]
+
+                        # export the graph, according to the direction of the vertex, and whether it's weighted or not
+                        if not oriented or vertex_components[1] == "->":
+                            if weighted:
+                                graph.add_vertex(n1, n2, self._convert_string_to_number(weights_strings[0]))
+                            else:
+                                graph.add_vertex(n1, n2)
                         elif vertex_components[1] == "<-":
-                            graph.add_vertex(node_dictionary[nodes[1]], node_dictionary[nodes[0]])
+                            if weighted:
+                                graph.add_vertex(n2, n1, self._convert_string_to_number(weights_strings[0]))
+                            else:
+                                graph.add_vertex(n2, n1)
                         else:
-                            graph.add_vertex(node_dictionary[nodes[0]], node_dictionary[nodes[1]])
-                            graph.add_vertex(node_dictionary[nodes[1]], node_dictionary[nodes[0]])
+                            if weighted:
+                                graph.add_vertex(n1, n2, self._convert_string_to_number(weights_strings[0]))
+                                graph.add_vertex(n2, n1, self._convert_string_to_number(weights_strings[1]))
+                            else:
+                                graph.add_vertex(n1, n2)
+                                graph.add_vertex(n2, n1)
 
                 self.graph = graph
 
             except UnicodeDecodeError:
                 QMessageBox.critical(self, "Error!", "Can't read binary files!")
+            except ValueError:
+                QMessageBox.critical(self, "Error!", "The weights of the graph are not numbers!")
             except Exception:
                 QMessageBox.critical(self, "Error!", "An error occurred when importing the graph. Make sure that the "
                                                      "file is in the correct format!")
 
+            # make sure that the UI is in order
             self.deselect_node()
+            self.deselect_vertex()
+            self.set_checkbox_values()
+
+    def _convert_string_to_number(self, str):
+        """Attempts to convert the specified string to a number. THROWS ERROR IF IT FAILS TO DO SO!"""
+        try:
+            return int(str)
+        except ValueError:
+            return float(str)
+
+    def set_checkbox_values(self):
+        """Sets the values of the checkboxes, depending on the type of graph."""
+        self.weighted_checkbox.setChecked(self.graph.is_weighted())
+        self.set_toggle_button_text()
 
     def export_graph(self):
         """Is called when the export button is clicked; exports a graph to a file."""
@@ -214,20 +262,27 @@ class TreeVisualizer(QWidget):
                         for j in range(i + 1, len(self.graph.get_nodes())):
                             n2 = self.graph.get_nodes()[j]
 
-                            n1_to_n2 = self.graph.does_vertex_exist(n1, n2)
+                            v1_exists = self.graph.does_vertex_exist(n1, n2)
 
-                            if not self.graph.is_oriented() and n1_to_n2:
+                            # the weight is an empty string, if...
+                            w1_value = self.graph.get_weight(n1, n2)
+                            w1 = "" if not self.graph.is_weighted() or w1_value is None else str(w1_value)
+
+                            if not self.graph.is_oriented() and v1_exists:
                                 # for undirected graphs, no direction symbols are necessary
-                                file.write(n1.get_label() + " " + n2.get_label() + "\n")
+                                file.write(n1.get_label() + " " + n2.get_label() + " " + w1 + "\n")
                             else:
-                                n2_to_n1 = self.graph.does_vertex_exist(n2, n1)
+                                v2_exists = self.graph.does_vertex_exist(n2, n1)
 
-                                if n1_to_n2 and n2_to_n1:
-                                    file.write(n1.get_label() + " <> " + n2.get_label() + "\n")
-                                elif n1_to_n2:
-                                    file.write(n1.get_label() + " -> " + n2.get_label() + "\n")
-                                elif n2_to_n1:
-                                    file.write(n1.get_label() + " <- " + n2.get_label() + "\n")
+                                w2_value = self.graph.get_weight(n2, n1)
+                                w2 = "" if not self.graph.is_weighted() or w2_value is None else str(w2_value)
+
+                                if v1_exists and v2_exists:
+                                    file.write("%s <> %s %s %s\n" % (n1.get_label(), n2.get_label(), str(w1), str(w2)))
+                                elif v1_exists:
+                                    file.write("%s -> %s %s\n" % (n1.get_label(), n2.get_label(), str(w1)))
+                                elif v2_exists:
+                                    file.write("%s <- %s %s\n" % (n1.get_label(), n2.get_label(), str(w2)))
             except Exception:
                 QMessageBox.critical(self, "Error!", "An error occurred when exporting the graph. Make sure that you "
                                                      "have permission to write to the specified file!")
@@ -256,7 +311,7 @@ class TreeVisualizer(QWidget):
         QMessageBox.information(self, "About", message)
 
     def toggle_graph_orientation(self):
-        """Is called when the oriented checkbox changes; sets the orientation of the graph."""
+        """Is called when the oriented checkbox changes; toggles the orientation of the graph."""
         self.graph.set_oriented(not self.graph.is_oriented())
         self.set_toggle_button_text()
 

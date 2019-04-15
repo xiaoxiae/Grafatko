@@ -126,8 +126,8 @@ class Graph:
         return self.weighted
 
     def get_weight(self, n1, n2):
-        """Returns the weight of the specified vertex."""
-        return self.nodes[self.nodes.index(n1)].neighbours[n2]
+        """Returns the weight of the specified vertex and None, if it doesn't exist."""
+        return None if not self.does_vertex_exist(n1, n2) else self.nodes[self.nodes.index(n1)].neighbours[n2]
 
     def set_weighted(self, weighted):
         """Sets, whether the graph is weighted or not."""
