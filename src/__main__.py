@@ -5,7 +5,7 @@ from random import random
 from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, \
-    QPushButton, QMessageBox, QFileDialog
+    QPushButton, QMessageBox, QFileDialog, QSizePolicy
 
 from graph import Graph
 
@@ -80,11 +80,15 @@ class TreeVisualizer(QWidget):
         # for setting, whether the graph is weighted or not
         self.weighted_checkbox = QCheckBox(text="weighted", clicked=self.set_weighted_graph)
 
+        # for enabling/disabling forces
+        self.forces_checkbox = QCheckBox(text="forces", checked=True)
+
         self.input_line_edit = QLineEdit(enabled=self.labels_checkbox.isChecked(),
                                          textChanged=self.input_line_edit_changed)
 
         # for displaying information about the app
-        self.about_button = QPushButton(text="?", clicked=self.show_help)
+        self.about_button = QPushButton(text="?", clicked=self.show_help,
+                                        sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed))
 
         self.import_graph_button = QPushButton(text="import", clicked=self.import_graph)
         self.export_graph_button = QPushButton(text="export", clicked=self.export_graph)
@@ -100,14 +104,16 @@ class TreeVisualizer(QWidget):
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.labels_checkbox)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
-        self.option_h_layout.addWidget(self.input_line_edit)
+        self.option_h_layout.addWidget(self.forces_checkbox)
         self.option_h_layout.addSpacing(self.layout_item_spacing)
-        self.option_h_layout.addWidget(self.about_button)
+        self.option_h_layout.addWidget(self.input_line_edit)
 
         self.io_h_layout = QHBoxLayout(self, margin=self.layout_margins)
         self.io_h_layout.addWidget(self.import_graph_button)
         self.io_h_layout.addSpacing(self.layout_item_spacing)
         self.io_h_layout.addWidget(self.export_graph_button)
+        self.io_h_layout.addSpacing(self.layout_item_spacing)
+        self.io_h_layout.addWidget(self.about_button)
 
         self.main_v_layout.addLayout(self.option_h_layout)
         self.main_v_layout.addSpacing(-self.layout_margins)
@@ -140,11 +146,11 @@ class TreeVisualizer(QWidget):
 
     def repulsion_force(self, distance):
         """Calculates the strength of the repulsion force at the specified distance."""
-        return 1 / distance * 10
+        return 1 / distance * 10 if self.forces_checkbox.isChecked() else 0
 
     def attraction_force(self, distance, leash_length=80):
         """Calculates the strength of the attraction force at the specified distance and leash length."""
-        return -(distance - leash_length) / 10
+        return -(distance - leash_length) / 10 if self.forces_checkbox.isChecked() else 0
 
     def import_graph(self):
         """Is called when the import button is clicked; imports a graph from a file."""
