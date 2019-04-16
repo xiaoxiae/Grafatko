@@ -398,7 +398,6 @@ class TreeVisualizer(QWidget):
         for node in self.graph.get_nodes():
             if self.distance(x, y, node.get_x(), node.get_y()) <= node.get_radius():
                 pressed_node = node
-                break
 
         # (potentially) find a vertex that has been pressed
         pressed_vertex = None
