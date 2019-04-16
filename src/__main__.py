@@ -427,20 +427,18 @@ class TreeVisualizer(QWidget):
         elif event.button() == Qt.RightButton:
             # either make/remove a connection if we right clicked a node, or create a new node if we haven't
             if pressed_node is not None:
-                if self.selected_node is not None:
-                    if pressed_node is not self.selected_node:
-                        # if a connection does not exist between the nodes, create it; otherwise remove it
-                        if self.graph.does_vertex_exist(self.selected_node, pressed_node):
-                            self.graph.remove_vertex(self.selected_node, pressed_node)
-                        else:
-                            self.graph.add_vertex(self.selected_node, pressed_node)
+                if self.selected_node is not None and pressed_node is not self.selected_node:
+                    # if a connection does not exist between the nodes, create it; otherwise remove it
+                    if self.graph.does_vertex_exist(self.selected_node, pressed_node):
+                        self.graph.remove_vertex(self.selected_node, pressed_node)
                     else:
-                        self.graph.remove_node(self.selected_node)
-                        self.deselect_node()
+                        self.graph.add_vertex(self.selected_node, pressed_node)
+                else:
+                    self.graph.remove_node(pressed_node)
+                    self.deselect_node()
             elif pressed_vertex is not None:
-                if self.selected_vertex == pressed_vertex:
-                    self.graph.remove_vertex(*self.selected_vertex)
-                    self.deselect_vertex()
+                self.graph.remove_vertex(*pressed_vertex)
+                self.deselect_vertex()
             else:
                 node = self.graph.add_node(x, y, self.node_radius)
 
