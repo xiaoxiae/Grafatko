@@ -101,7 +101,7 @@ class Graph:
                         i += 1
                     else:
                         existing_set |= self.continuity_sets.pop(set_index)
-                        set_index = i
+                        set_index = i - 1
                 else:
                     i += 1
 
