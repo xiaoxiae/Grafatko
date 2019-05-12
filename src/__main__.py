@@ -2,7 +2,7 @@ import sys
 from math import sqrt, cos, sin, radians, pi
 from random import random
 
-from PyQt5.QtCore import Qt, QSize, QTimer, QPoint, QRect
+from PyQt5.QtCore import Qt, QSize, QTimer, QPointF, QRectF
 from PyQt5.QtGui import QPainter, QBrush, QPen, QFont, QIcon
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QFrame, QCheckBox, QHBoxLayout, QLineEdit, \
     QPushButton, QMessageBox, QFileDialog, QSizePolicy
@@ -644,13 +644,13 @@ class TreeVisualizer(QWidget):
 
                     # draw the tip of the arrow, as the triangle
                     painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
-                    painter.drawPolygon(QPoint(xa, ya),
-                                        QPoint(x + nx_arrow * self.arrowhead_size, y + ny_arrow * self.arrowhead_size),
-                                        QPoint(x - nx_arrow * self.arrowhead_size, y - ny_arrow * self.arrowhead_size))
+                    painter.drawPolygon(QPointF(xa, ya),
+                                        QPointF(x + nx_arrow * self.arrowhead_size, y + ny_arrow * self.arrowhead_size),
+                                        QPointF(x - nx_arrow * self.arrowhead_size, y - ny_arrow * self.arrowhead_size))
 
                 # draw only one of the two vertices, if the graph is undirected
                 if self.graph.is_directed() or id(node) < id(neighbour):
-                    painter.drawLine(x1, y1, x2, y2)
+                    painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
                     if self.graph.is_weighted():
                         x_middle, y_middle = (x2 + x1) / 2, (y2 + y1) / 2
@@ -672,7 +672,9 @@ class TreeVisualizer(QWidget):
                         else:
                             painter.setBrush(QBrush(self.regular_vertex_weight_color, Qt.SolidPattern))
 
-                        painter.drawRect(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r))
+                        # draw the square
+                        square_rectangle = QRectF(x_middle - r, y_middle - r, 2 * r, 2 * r)
+                        painter.drawRect(square_rectangle)
 
                         # adjust the length of the weight string, so the minus sign doesn't make the number smaller
                         length = len(str(weight)) - (1 if weight < 0 else 0)
@@ -681,7 +683,7 @@ class TreeVisualizer(QWidget):
 
                         # draw the value of the vertex (in white, so it's visible against the background)
                         painter.setPen(QPen(Qt.white, Qt.SolidLine))
-                        painter.drawText(QRect(x_middle - r, y_middle - r, 2 * r, 2 * r), Qt.AlignCenter, str(weight))
+                        painter.drawText(square_rectangle, Qt.AlignCenter, str(weight))
                         painter.setPen(QPen(Qt.black, Qt.SolidLine))
 
         # draw nodes
@@ -694,7 +696,7 @@ class TreeVisualizer(QWidget):
 
             x, y, r = node.get_x(), node.get_y(), node.get_radius()
 
-            painter.drawEllipse(QPoint(x, y), r, r)
+            painter.drawEllipse(QPointF(x, y), r, r)
 
             # only draw labels if the label checkbox is checked
             if self.labels_checkbox.isChecked():
@@ -704,7 +706,7 @@ class TreeVisualizer(QWidget):
                 painter.setFont(QFont(self.font_family, self.font_size / len(label)))
 
                 # draw the node label within the node dimensions
-                painter.drawText(QRect(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
+                painter.drawText(QRectF(x - r, y - r, 2 * r, 2 * r), Qt.AlignCenter, label)
 
     def distance(self, x1, y1, x2, y2):
         """Returns the distance of two points in space."""
