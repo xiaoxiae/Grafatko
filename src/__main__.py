@@ -120,6 +120,11 @@ class TreeVisualizer(QWidget):
             sizePolicy=QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed),
         )
 
+        # for creating complements of the graph
+        self.complement_button = QPushButton(
+            text="complement", clicked=self.graph.complement,
+        )
+
         # imports/exports the current graph
         self.import_graph_button = QPushButton(text="import", clicked=self.import_graph)
         self.export_graph_button = QPushButton(text="export", clicked=self.export_graph)
@@ -139,16 +144,18 @@ class TreeVisualizer(QWidget):
         self.option_h_layout.addSpacing(self.layout_item_spacing)
         self.option_h_layout.addWidget(self.input_line_edit)
 
-        self.io_h_layout = QHBoxLayout(self, margin=self.layout_margins)
-        self.io_h_layout.addWidget(self.import_graph_button)
-        self.io_h_layout.addSpacing(self.layout_item_spacing)
-        self.io_h_layout.addWidget(self.export_graph_button)
-        self.io_h_layout.addSpacing(self.layout_item_spacing)
-        self.io_h_layout.addWidget(self.about_button)
+        self.bottom_h_layout = QHBoxLayout(self, margin=self.layout_margins)
+        self.bottom_h_layout.addWidget(self.complement_button)
+        self.bottom_h_layout.addSpacing(self.layout_item_spacing)
+        self.bottom_h_layout.addWidget(self.import_graph_button)
+        self.bottom_h_layout.addSpacing(self.layout_item_spacing)
+        self.bottom_h_layout.addWidget(self.export_graph_button)
+        self.bottom_h_layout.addSpacing(self.layout_item_spacing)
+        self.bottom_h_layout.addWidget(self.about_button)
 
         self.main_v_layout.addLayout(self.option_h_layout)
         self.main_v_layout.addSpacing(-self.layout_margins)
-        self.main_v_layout.addLayout(self.io_h_layout)
+        self.main_v_layout.addLayout(self.bottom_h_layout)
 
         self.setLayout(self.main_v_layout)
 

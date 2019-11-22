@@ -224,3 +224,10 @@ class Graph:
             del n2.neighbours[n1]
 
         self.calculate_components()
+
+    def complement(self):
+        """Makes the graph the complement of itself."""
+        for n1 in self.get_nodes():
+            for n2 in self.get_nodes():
+                if n1 is not n2 and (self.directed or id(n1) < id(n2)):
+                    self.toggle_vertex(n1, n2)
