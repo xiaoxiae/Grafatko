@@ -1,5 +1,7 @@
 # PyCharm configuration files
-\.idea/
+.idea/
 
 # Python cache files
-src/__pycache__/
+__pycache__/
+.mypy_cache/
+
