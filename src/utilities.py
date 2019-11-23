@@ -1,3 +1,4 @@
+from __future__ import annotations
 from math import sqrt, sin, cos
 
 
@@ -95,11 +96,18 @@ class Vector:
         """Returns the magnitude of the vector."""
         return sqrt(sum(component ** 2 for component in self))
 
-    def rotated(self, angle):
-        """Returns the vector rotated by an angle (in radians)."""
+    def rotated(self, angle: float, point: Vector = None):
+        """Returns this vector rotated by an angle (in radians) around a certain point."""
+        if point is None:
+            point = Vector(0, 0)
+
+        return self.__rotated(self - point, angle) + point
+
+    def __rotated(self, vector: Vector, angle: float):
+        """Returns a vector rotated by an angle (in radians)."""
         return Vector(
-            self[0] * cos(angle) - self[1] * sin(angle),
-            self[0] * sin(angle) + self[1] * cos(angle),
+            vector[0] * cos(angle) - vector[1] * sin(angle),
+            vector[0] * sin(angle) + vector[1] * cos(angle),
         )
 
     def unit(self):

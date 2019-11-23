@@ -1,12 +1,11 @@
-# for argv
-import sys
-
 # math
 from math import sqrt, cos, sin, radians, pi
 from random import random
 
-# parsing
-import ast
+import sys  # for argv
+import ast  # parsing
+
+from typing import Tuple
 
 # PyQt5
 from PyQt5.QtCore import Qt, QSize, QTimer, QPointF, QRectF
@@ -42,7 +41,6 @@ class TreeVisualizer(QWidget):
         self.graph: Graph = Graph()
         self.selected_node: Node = None
 
-        self.vertex_positions: List[Tuple[Vector, Tuple[Node, Node]]] = []
         self.selected_vertex: Tuple[Node, Node] = None
 
         # offset of the mouse from the position of the currently dragged node
@@ -55,7 +53,7 @@ class TreeVisualizer(QWidget):
         self.node_radius: float = 20
         self.weight_rectangle_size: float = self.node_radius / 3
 
-        self.arrowhead_size: float = 4
+        self.arrowhead_size: float = 8
         self.arrow_separation: float = pi / 7
 
         self.selected_color = Qt.red
@@ -482,16 +480,20 @@ class TreeVisualizer(QWidget):
 
         # (potentially) find a vertex that has been pressed
         pressed_vertex = None
-        for vertex in self.vertex_positions:
-            if (
-                # TODO: finish the selecting of vertices
-                abs(vertex[0][0] - pos[0]) < self.weight_rectangle_size
-                and abs(vertex[0][1] - pos[1]) < self.weight_rectangle_size
-            ):
-                pressed_vertex = vertex[1]
+        if self.graph.is_weighted():
+            for n1 in self.graph.get_nodes():
+                for n2, weight in n1.get_neighbours().items():
+
+                    if self.graph.is_directed() or id(n1) < id(n2):
+                        weight = self.graph.get_weight(n1, n2)
+
+                        # the bounding box of this weight
+                        weight_rect = self.get_vertex_weight_rect(n1, n2, weight)
+                        if weight_rect.contains(QPointF(*pos)):
+                            pressed_vertex = (n1, n2)
 
         if event.button() == Qt.LeftButton:
-            # nodes have the priority in selection before vertices
+            # nodes have the priority in selection over vertices
             if pressed_node is not None:
                 self.deselect_vertex()
                 self.select_node(pressed_node)
@@ -663,145 +665,122 @@ class TreeVisualizer(QWidget):
         painter.translate(*self.translation)
         painter.scale(self.scale, self.scale)
 
-        # if the graph is weighted, reset the positions, since they will be re-drawn
-        # later on
-        if self.graph.is_weighted():
-            self.vertex_positions = []
-
-        # draw vertices; has to be drawn before nodes, so they aren't drawn on top
+        # draw vertexes
         for n1 in self.graph.get_nodes():
             for n2, weight in n1.get_neighbours().items():
-                n1_p = Vector(*n1.get_position())
-                n2_p = Vector(*n2.get_position())
-
-                # create a unit vector from the first to the second node
-                uv = (n2_p - n1_p).unit()
-
-                d = distance(n1_p, n2_p)
-                r = n2.get_radius()
-
-                # if it's directed, draw the head of the arrow
-                if self.graph.is_directed():
-
-                    # in case there is a vertex going the other way, we will move the
-                    # line up the circles by an angle, so there is separation between
-                    # the vertices
-                    if self.graph.does_vertex_exist(n2, n1):
-                        # TODO: figure out what this does
-                        nv = (
-                            Vector(
-                                -uv[1] * sin(self.arrow_separation)
-                                + uv[0] * (1 - cos(self.arrow_separation)),
-                                uv[0] * sin(self.arrow_separation)
-                                + uv[1] * (1 - cos(self.arrow_separation)),
-                            )
-                            * r
-                        )
-
-                        n1_p += nv
-                        n2_p += nv
-
-                    # the position of the head of the arrow
-                    arrow_head_pos = n1_p + uv * (d - r)
-
-                    # calculate the two remaining points of the arrow; this is done the
-                    # same way as the previous calculation (shift by vector)
-                    d = distance(n1_p, arrow_head_pos)
-                    uv_arrow = (arrow_head_pos - n1_p).unit()
-
-                    # position of the base of the arrow
-                    arrow_base_pos = n1_p + uv_arrow * (d - self.arrowhead_size * 2)
-
-                    # the normal vectors to the unit vector of the arrow head
-                    nv_arrow = uv_arrow.rotated(pi / 2)
-
-                    # draw the tip of the arrow, as the triangle
-                    painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
-                    painter.drawPolygon(
-                        QPointF(*arrow_head_pos),
-                        QPointF(*(arrow_base_pos + nv_arrow * self.arrowhead_size)),
-                        QPointF(*(arrow_base_pos - nv_arrow * self.arrowhead_size)),
-                    )
-
-                # draw only one of the two vertices, if the graph is undirected
-                if self.graph.is_directed() or id(n1) < id(n2):
-                    painter.drawLine(QPointF(*n1_p), QPointF(*n2_p))
-
-                    if self.graph.is_weighted():
-                        mid = (n2_p + n1_p) / 2
-
-                        # if the graph is directed, the vertices are offset (so they
-                        # aren't draw on top of each other), so we need to shift them
-                        # back to be at the midpoint between the nodes
-                        if self.graph.is_directed():
-                            mid -= uv * r * (1 - cos(self.arrow_separation))
-
-                        r = self.weight_rectangle_size
-
-                        self.vertex_positions.append((mid, (n1, n2)))
-
-                        # make the selected vertex rectangle background different, if
-                        # it's selected (for aesthetics)
-                        if (
-                            self.selected_vertex is not None
-                            and n1 is self.selected_vertex[0]
-                            and n2 is self.selected_vertex[1]
-                        ):
-                            painter.setBrush(
-                                QBrush(self.selected_color, Qt.SolidPattern)
-                            )
-                        else:
-                            painter.setBrush(
-                                QBrush(
-                                    self.regular_vertex_weight_color, Qt.SolidPattern
-                                )
-                            )
-
-                        # the text rectangle
-                        w_len = len(str(weight)) / 3 * r + r / 3
-                        weight_v = Vector(r if w_len <= r else w_len, r)
-                        weight_rectangle = QRectF(*(mid - weight_v), *(2 * weight_v))
-
-                        painter.drawRect(weight_rectangle)
-
-                        painter.setFont(QFont(self.font_family, self.font_size / 3))
-
-                        # draw the value of the vertex (in white, so it's visible
-                        # against the background)
-                        painter.setPen(QPen(Qt.white, Qt.SolidLine))
-                        painter.drawText(weight_rectangle, Qt.AlignCenter, str(weight))
-                        painter.setPen(QPen(Qt.black, Qt.SolidLine))
+                self.draw_vertex(n1, n2, weight, painter)
 
         # draw nodes
         for node in self.graph.get_nodes():
+            self.draw_node(node, painter)
 
-            # set the color according to whether it's selected
-            painter.setBrush(
-                QBrush(
-                    self.selected_color
-                    if node is self.selected_node
-                    else self.regular_node_color,
-                    Qt.SolidPattern,
-                )
+    def draw_node(self, node: Node, painter):
+        """Draw the specified node."""
+        painter.setBrush(
+            QBrush(
+                self.selected_color
+                if node is self.selected_node
+                else self.regular_node_color,
+                Qt.SolidPattern,
+            )
+        )
+
+        node_position = node.get_position()
+        node_radius = Vector(node.get_radius()).repeat(2)
+
+        painter.drawEllipse(QPointF(*node_position), *node_radius)
+
+        if self.labels_checkbox.isChecked():
+            label = node.get_label()
+
+            # scale font down, depending on the length of the label of the node
+            painter.setFont(QFont(self.font_family, self.font_size / len(label)))
+
+            # draw the node label within the node dimensions
+            painter.drawText(
+                QRectF(*(node_position - node_radius), *(2 * node_radius)),
+                Qt.AlignCenter,
+                label,
             )
 
-            node_position = node.get_position()
-            node_radius = Vector(node.get_radius()).repeat(2)
+    def draw_vertex(self, n1: Node, n2: Node, weight: float, painter):
+        """Draw the specified vertex."""
+        start, end = self.get_vertex_position(n1, n2)
 
-            painter.drawEllipse(QPointF(*node_position), *node_radius)
+        # draw the head of a directed arrow, which is an equilateral triangle
+        if self.graph.is_directed():
+            uv = (end - start).unit()
 
-            if self.labels_checkbox.isChecked():
-                label = node.get_label()
+            painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
+            painter.drawPolygon(
+                QPointF(*end),
+                QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+                QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+            )
 
-                # scale font down, depending on the length of the label of the node
-                painter.setFont(QFont(self.font_family, self.font_size / len(label)))
+        # if the graph is not directed, draw only one of the vertexes
+        if self.graph.is_directed() or id(n1) < id(n2):
+            painter.setPen(QPen(Qt.black, Qt.SolidLine))
+            painter.drawLine(QPointF(*start), QPointF(*end))
 
-                # draw the node label within the node dimensions
-                painter.drawText(
-                    QRectF(*(node_position - node_radius), *(2 * node_radius)),
-                    Qt.AlignCenter,
-                    label,
+            if self.graph.is_weighted():
+                # set color according to whether the vertex is selected or not
+                painter.setBrush(
+                    QBrush(
+                        self.selected_color
+                        if self.selected_vertex is not None
+                        and n1 is self.selected_vertex[0]
+                        and n2 is self.selected_vertex[1]
+                        else self.regular_vertex_weight_color,
+                        Qt.SolidPattern,
+                    )
                 )
+
+                weight_rectangle = self.get_vertex_weight_rect(n1, n2, weight)
+                painter.drawRect(weight_rectangle)
+
+                # TODO: refactor stuff so one can set any outline color they want
+                painter.setFont(QFont(self.font_family, self.font_size / 3))
+
+                painter.setPen(QPen(Qt.white, Qt.SolidLine))
+                painter.drawText(weight_rectangle, Qt.AlignCenter, str(weight))
+                painter.setPen(QPen(Qt.black, Qt.SolidLine))
+
+    def get_vertex_position(self, n1: Node, n2: Node) -> Tuple[Vector, Vector]:
+        """Return the position of the vertex on the screen."""
+        # positions of the nodes
+        n1_p = Vector(*n1.get_position())
+        n2_p = Vector(*n2.get_position())
+
+        # unit vector from n1 to n2
+        uv = (n2_p - n1_p).unit()
+
+        # start and end of the vertex to be drawn
+        start = n1_p + uv * n1.get_radius()
+        end = n2_p - uv * n2.get_radius()
+
+        if self.graph.is_directed():
+            # if the graph is directed and a vertex exists that goes the other way, we
+            # have to move the start end end so the vertexes don't overlap
+            if self.graph.does_vertex_exist(n2, n1):
+                start = start.rotated(self.arrow_separation, n1_p)
+                end = end.rotated(-self.arrow_separation, n2_p)
+
+        return start, end
+
+    def get_vertex_weight_rect(self, n1: Node, n2: Node, weight: float):
+        """Get a RectF surrounding the weight of the node."""
+        r = self.weight_rectangle_size
+
+        # mid point between the nodes
+        start, end = self.get_vertex_position(n1, n2)
+        mid = (start + end) / 2
+
+        # width adjusted to number of chars in weight label
+        adjusted_width = len(str(weight)) / 3 * r + r / 3
+        weight_vector = Vector(r if adjusted_width <= r else adjusted_width, r)
+
+        return QRectF(*(mid - weight_vector), *(2 * weight_vector))
 
 
 app = QApplication(sys.argv)

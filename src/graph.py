@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Set, List
+from typing import Set, List, Union
 
 
 class Node:
@@ -145,7 +145,7 @@ class Graph:
         """Sets, whether the graph is weighted or not."""
         self.weighted = value
 
-    def get_weight(self, n1: Node, n2: Node):
+    def get_weight(self, n1: Node, n2: Node) -> Union[float, None]:
         """Returns the weight of the specified vertex and None if it doesn't exist."""
         return (
             None
@@ -229,5 +229,5 @@ class Graph:
         """Makes the graph the complement of itself."""
         for n1 in self.get_nodes():
             for n2 in self.get_nodes():
-                if n1 is not n2 and (self.directed or id(n1) < id(n2)):
+                if self.directed or id(n1) < id(n2):
                     self.toggle_vertex(n1, n2)
