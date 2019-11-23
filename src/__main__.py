@@ -511,10 +511,7 @@ class TreeVisualizer(QWidget):
 
         elif event.button() == Qt.RightButton:
             if pressed_node is not None:
-                if (
-                    self.selected_node is not None
-                    and pressed_node is not self.selected_node
-                ):
+                if self.selected_node is not None:
                     self.graph.toggle_vertex(self.selected_node, pressed_node)
                 else:
                     self.graph.remove_node(pressed_node)
@@ -523,6 +520,7 @@ class TreeVisualizer(QWidget):
             elif pressed_vertex is not None:
                 self.graph.remove_vertex(*pressed_vertex)
                 self.deselect_vertex()
+
             else:
                 node = self.graph.add_node(pos, self.node_radius)
 
@@ -705,46 +703,72 @@ class TreeVisualizer(QWidget):
 
     def draw_vertex(self, n1: Node, n2: Node, weight: float, painter):
         """Draw the specified vertex."""
-        start, end = self.get_vertex_position(n1, n2)
+        # special case for a node pointing to itself
+        if n1 is n2:
+            r = n1.get_radius()
+            x, y = n1.get_position()
 
-        # draw the head of a directed arrow, which is an equilateral triangle
-        if self.graph.is_directed():
-            uv = (end - start).unit()
+            painter.setPen(QPen(Qt.black, Qt.SolidLine))
+            painter.setBrush(QBrush(Qt.black, Qt.NoBrush))
+
+            painter.drawEllipse(QPointF(x - r / 2, y - r), r / 2, r / 2)
+
+            head = Vector(x, y) - Vector(0, r)
+            uv = Vector(0, 1)
 
             painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
             painter.drawPolygon(
-                QPointF(*end),
-                QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
-                QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+                QPointF(*head),
+                QPointF(*(head + (-uv).rotated(radians(10)) * self.arrowhead_size)),
+                QPointF(*(head + (-uv).rotated(radians(-50)) * self.arrowhead_size)),
             )
+        else:
+            start, end = self.get_vertex_position(n1, n2)
 
-        # if the graph is not directed, draw only one of the vertexes
-        if self.graph.is_directed() or id(n1) < id(n2):
+            # draw the head of a directed arrow, which is an equilateral triangle
+            if self.graph.is_directed():
+                uv = (end - start).unit()
+
+                painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
+                painter.drawPolygon(
+                    QPointF(*end),
+                    QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+                    QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+                )
+
             painter.setPen(QPen(Qt.black, Qt.SolidLine))
             painter.drawLine(QPointF(*start), QPointF(*end))
 
-            if self.graph.is_weighted():
-                # set color according to whether the vertex is selected or not
-                painter.setBrush(
-                    QBrush(
-                        self.selected_color
-                        if self.selected_vertex is not None
-                        and n1 is self.selected_vertex[0]
-                        and n2 is self.selected_vertex[1]
-                        else self.regular_vertex_weight_color,
-                        Qt.SolidPattern,
+        if self.graph.is_weighted():
+            # set color according to whether the vertex is selected or not
+            painter.setBrush(
+                QBrush(
+                    self.selected_color
+                    if self.selected_vertex is not None
+                    and (
+                        (
+                            n1 is self.selected_vertex[0]
+                            and n2 is self.selected_vertex[1]
+                        )
+                        or (
+                            not self.graph.is_directed()
+                            and n2 is self.selected_vertex[0]
+                            and n1 is self.selected_vertex[1]
+                        )
                     )
+                    else self.regular_vertex_weight_color,
+                    Qt.SolidPattern,
                 )
+            )
 
-                weight_rectangle = self.get_vertex_weight_rect(n1, n2, weight)
-                painter.drawRect(weight_rectangle)
+            weight_rectangle = self.get_vertex_weight_rect(n1, n2, weight)
+            painter.drawRect(weight_rectangle)
 
-                # TODO: refactor stuff so one can set any outline color they want
-                painter.setFont(QFont(self.font_family, self.font_size / 3))
+            painter.setFont(QFont(self.font_family, self.font_size / 3))
 
-                painter.setPen(QPen(Qt.white, Qt.SolidLine))
-                painter.drawText(weight_rectangle, Qt.AlignCenter, str(weight))
-                painter.setPen(QPen(Qt.black, Qt.SolidLine))
+            painter.setPen(QPen(Qt.white, Qt.SolidLine))
+            painter.drawText(weight_rectangle, Qt.AlignCenter, str(weight))
+            painter.setPen(QPen(Qt.black, Qt.SolidLine))
 
     def get_vertex_position(self, n1: Node, n2: Node) -> Tuple[Vector, Vector]:
         """Return the position of the vertex on the screen."""
@@ -772,13 +796,16 @@ class TreeVisualizer(QWidget):
         """Get a RectF surrounding the weight of the node."""
         r = self.weight_rectangle_size
 
-        # mid point between the nodes
-        start, end = self.get_vertex_position(n1, n2)
-        mid = (start + end) / 2
-
         # width adjusted to number of chars in weight label
         adjusted_width = len(str(weight)) / 3 * r + r / 3
         weight_vector = Vector(r if adjusted_width <= r else adjusted_width, r)
+
+        if n1 is n2:
+            # special case for a vertex pointing to itself
+            mid = n1.get_position() - Vector(r * 3, r * 4)
+        else:
+            start, end = self.get_vertex_position(n1, n2)
+            mid = (start + end) / 2
 
         return QRectF(*(mid - weight_vector), *(2 * weight_vector))
 

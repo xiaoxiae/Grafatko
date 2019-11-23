@@ -189,7 +189,12 @@ class Graph:
 
     def add_vertex(self, n1: Node, n2: Node, weight: float = 0):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
-        Only does so if the given vertex doesn't already exist."""
+        Only does so if the given vertex doesn't already exist and can be added (ex.:
+        if the graph is not directed and the node wants to point to itself -- we can't
+        allow that."""
+        if n1 is n2 and not self.directed:
+            return
+
         # from n1 to n2
         n1.neighbours[n2] = weight
 
