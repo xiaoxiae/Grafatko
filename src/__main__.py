@@ -528,8 +528,8 @@ class TreeVisualizer(QWidget):
                 if self.selected_node is not None:
                     self.graph.add_vertex(self.selected_node, node)
 
-                self.select_node(node)
                 self.deselect_vertex()
+                self.select_node(node)
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released; stops node drag."""
