@@ -131,9 +131,13 @@ class Graph:
         """Sets, whether the graph is directed or not."""
         if not value:
             # make all vertexes go both ways
+            # also remove vertexes pointing to themselves -- we can't have that!
             for node in self.get_nodes():
-                for neighbour in node.get_neighbours():
-                    self.add_vertex(neighbour, node, weight=0)
+                for neighbour in list(node.get_neighbours()):
+                    if node is neighbour:
+                        self.remove_vertex(node, neighbour)
+                    else:
+                        self.add_vertex(neighbour, node, weight=0)
 
         self.directed = value
 
