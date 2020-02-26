@@ -2,30 +2,17 @@
 from math import sqrt, cos, sin, radians, pi
 from random import random
 
-import sys  # for argv
-import ast  # parsing
+import sys  # argv
 
-from typing import Tuple
+from typing import *
 
 # PyQt5
-from PyQt5.QtCore import Qt, QSize, QTimer, QPointF, QRectF
-from PyQt5.QtGui import QPainter, QBrush, QPen, QFont, QIcon
-from PyQt5.QtWidgets import (
-    QApplication,
-    QWidget,
-    QVBoxLayout,
-    QFrame,
-    QCheckBox,
-    QHBoxLayout,
-    QLineEdit,
-    QPushButton,
-    QMessageBox,
-    QFileDialog,
-    QSizePolicy,
-)
+from PyQt5.QtCore import *
+from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 # graph stuff
-from graph import Graph, Node
+from graph import *
 
 # utilities stuff
 from utilities import *
@@ -196,169 +183,60 @@ class TreeVisualizer(QWidget):
         """Is called when the import button is clicked; imports a graph from a file."""
         path = QFileDialog.getOpenFileName()[0]
 
-        if path != "":
-            try:
-                with open(path, "r") as file:
-                    # a list of vertices of the graph
-                    data = [line.strip() for line in file.read().splitlines()]
+        if path == "":
+            return
 
-                    # set the properties of the graph by its first vertex
-                    sample = data[0].split(" ")
+        try:
+            self.graph = Graph.from_string(open(path, "r").read()) or self.graph
 
-                    directed = True if sample[1] in ["->", "<-", "<>"] else False
-                    weighted = (
-                        False
-                        if len(sample) == 2 or directed and len(sample) == 3
-                        else True
+            # set the graph coordinates
+            for node in self.graph.get_nodes():
+                node.set_position(
+                    Vector(
+                        self.canvas.width() / 2 + (random() - 0.5),
+                        self.canvas.height() / 2 + (random() - 0.5),
                     )
-
-                    graph = Graph(directed=directed, weighted=weighted)
-
-                    node_dictionary = {}
-
-                    # add each of the nodes of the vertex to the graph
-                    for vertex in data:
-                        vertex_components = vertex.split(" ")
-
-                        # the formats are either 'A B' or 'A <something> B'
-                        nodes = [
-                            vertex_components[0],
-                            vertex_components[2] if directed else vertex_components[1],
-                        ]
-
-                        # if weights are present, the formats are:
-                        # - 'A B num' for undirected graphs
-                        # - 'A <something> B num (num)' for directed graphs
-                        weights_strings = (
-                            None
-                            if not weighted
-                            else [
-                                vertex_components[2]
-                                if not directed
-                                else vertex_components[3],
-                                None
-                                if not directed or vertex_components[1] != "<>"
-                                else vertex_components[4],
-                            ]
-                        )
-
-                        for node in nodes:
-                            if node not in node_dictionary:
-                                # slightly randomize the coordinates, so the graph
-                                # doesn't stay in one place
-                                x = self.canvas.width() / 2 + (random() - 0.5)
-                                y = self.canvas.height() / 2 + (random() - 0.5)
-
-                                # add it to graph with default values
-                                node_dictionary[node] = graph.add_node(
-                                    Vector(x, y), self.node_radius, node
-                                )
-
-                        # get the node objects from the names
-                        n1, n2 = node_dictionary[nodes[0]], node_dictionary[nodes[1]]
-
-                        graph.add_vertex(
-                            n2 if vertex_components[1] == "<-" else n1,
-                            n1 if vertex_components[1] == "<-" else n2,
-                            0 if not weighted else ast.literal_eval(weights_strings[0]),
-                        )
-
-                        # possibly add the other way
-                        if vertex_components[1] == "<>":
-                            graph.add_vertex(
-                                n2,
-                                n1,
-                                0
-                                if not weighted
-                                else ast.literal_eval(weights_strings[1]),
-                            )
-
-                # if everything was successful, override the current graph
-                self.graph = graph
-
-            except UnicodeDecodeError:
-                QMessageBox.critical(self, "Error!", "Can't read binary files!")
-            except ValueError:
-                QMessageBox.critical(
-                    self, "Error!", "The weights of the graph are not numbers!"
-                )
-            except Exception:
-                QMessageBox.critical(
-                    self,
-                    "Error!",
-                    "An error occurred when importing the graph. Make sure that the "
-                    + "file is in the correct format and that it isn't currently being "
-                    + "used!",
                 )
 
-            # make sure that the UI is in order
-            self.deselect_node()
-            self.deselect_vertex()
-            self.set_checkbox_values()
+                node.set_radius(self.node_radius)
+
+        except UnicodeDecodeError:
+            QMessageBox.critical(self, "Error!", "Can't read binary files!")
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error!",
+                "An error occurred when importing the graph. Make sure that the "
+                + "file is in the correct format and that it isn't currently being "
+                + "used!.",
+            )
+
+        # make sure that the UI is in order
+        self.deselect_node()
+        self.deselect_vertex()
+        self.set_checkbox_values()
 
     def set_checkbox_values(self):
         """Sets the values of the checkboxes from the graph."""
-        self.weighted_checkbox.setChecked(self.graph.is_weighted())
+        self.weighted_checkbox.setChecked(self.graph.get_weighted())
         self.update_directed_toggle_button_text()
 
     def export_graph(self):
         """Is called when the export button is clicked; exports a graph to a file."""
         path = QFileDialog.getSaveFileName()[0]
 
-        if path != "":
-            try:
-                with open(path, "w") as file:
-                    # look at every pair of nodes and examine the vertices
-                    for i, n1 in enumerate(self.graph.get_nodes()):
-                        for j, n2 in enumerate(self.graph.get_nodes()[i + 1 :]):
-                            # information about vertices and weights
-                            v1_exists = self.graph.does_vertex_exist(n1, n2)
-                            v2_exists = self.graph.does_vertex_exist(n2, n1)
+        if path == "":
+            return
 
-                            if not v1_exists and v2_exists:
-                                continue
-
-                            w1_value = self.graph.get_weight(n1, n2)
-                            w1 = (
-                                ""
-                                if not self.graph.is_weighted() or w1_value is None
-                                else str(w1_value)
-                            )
-
-                            # undirected graphs
-                            if not self.graph.is_directed() and v1_exists:
-                                file.write(f"{n1.get_label()} {n2.get_label()} {w1}\n")
-                            else:
-                                w2_value = self.graph.get_weight(n2, n1)
-                                w2 = (
-                                    ""
-                                    if not self.graph.is_weighted() or w2_value is None
-                                    else str(w2_value)
-                                )
-
-                                symbol = (
-                                    "<>"
-                                    if v1_exists and v2_exists
-                                    else "->"
-                                    if v1_exists
-                                    else "<-"
-                                )
-
-                                vertex = f"{n1.get_label()} {symbol} {n2.get_label()}"
-
-                                if w1 != "":
-                                    vertex += f" {w1}"
-                                if w2 != "":
-                                    vertex += f" {w2}"
-
-                                file.write(vertex + "\n")
-            except Exception:
-                QMessageBox.critical(
-                    self,
-                    "Error!",
-                    "An error occurred when exporting the graph. Make sure that you "
-                    "have permission to write to the specified file and try again!",
-                )
+        try:
+            open(path, "w").write(self.graph.to_string())
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error!",
+                "An error occurred when exporting the graph. Make sure that you "
+                "have permission to write to the specified file and try again!",
+            )
 
     def show_help(self):
         """Is called when the help button is clicked; displays basic information about 
@@ -386,14 +264,14 @@ class TreeVisualizer(QWidget):
     def toggle_directed_graph(self):
         """Is called when the directed checkbox changes; toggles between directed and 
         undirected graphs."""
-        self.graph.set_directed(not self.graph.is_directed())
+        self.graph.set_directed(not self.graph.get_directed())
         self.update_directed_toggle_button_text()
 
     def update_directed_toggle_button_text(self):
         """Changes the text of the directed toggle button, according to whether the 
         graph is directer or not."""
         self.directed_toggle_button.setText(
-            "directed" if self.graph.is_directed() else "undirected"
+            "directed" if self.graph.get_directed() else "undirected"
         )
 
     def input_line_edit_changed(self, text: str):
@@ -480,11 +358,11 @@ class TreeVisualizer(QWidget):
 
         # (potentially) find a vertex that has been pressed
         pressed_vertex = None
-        if self.graph.is_weighted():
+        if self.graph.get_weighted():
             for n1 in self.graph.get_nodes():
-                for n2, weight in n1.get_neighbours().items():
+                for n2, weight in n1.get_adjacent().items():
 
-                    if self.graph.is_directed() or id(n1) < id(n2):
+                    if self.graph.get_directed() or id(n1) < id(n2):
                         weight = self.graph.get_weight(n1, n2)
 
                         # the bounding box of this weight
@@ -665,7 +543,7 @@ class TreeVisualizer(QWidget):
 
         # draw vertexes
         for n1 in self.graph.get_nodes():
-            for n2, weight in n1.get_neighbours().items():
+            for n2, weight in n1.get_adjacent().items():
                 self.draw_vertex(n1, n2, weight, painter)
 
         # draw nodes
@@ -726,7 +604,7 @@ class TreeVisualizer(QWidget):
             start, end = self.get_vertex_position(n1, n2)
 
             # draw the head of a directed arrow, which is an equilateral triangle
-            if self.graph.is_directed():
+            if self.graph.get_directed():
                 uv = (end - start).unit()
 
                 painter.setBrush(QBrush(Qt.black, Qt.SolidPattern))
@@ -739,7 +617,7 @@ class TreeVisualizer(QWidget):
             painter.setPen(QPen(Qt.black, Qt.SolidLine))
             painter.drawLine(QPointF(*start), QPointF(*end))
 
-        if self.graph.is_weighted():
+        if self.graph.get_weighted():
             # set color according to whether the vertex is selected or not
             painter.setBrush(
                 QBrush(
@@ -751,7 +629,7 @@ class TreeVisualizer(QWidget):
                             and n2 is self.selected_vertex[1]
                         )
                         or (
-                            not self.graph.is_directed()
+                            not self.graph.get_directed()
                             and n2 is self.selected_vertex[0]
                             and n1 is self.selected_vertex[1]
                         )
@@ -783,7 +661,7 @@ class TreeVisualizer(QWidget):
         start = n1_p + uv * n1.get_radius()
         end = n2_p - uv * n2.get_radius()
 
-        if self.graph.is_directed():
+        if self.graph.get_directed():
             # if the graph is directed and a vertex exists that goes the other way, we
             # have to move the start end end so the vertexes don't overlap
             if self.graph.does_vertex_exist(n2, n1):

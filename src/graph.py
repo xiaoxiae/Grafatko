@@ -1,26 +1,22 @@
+"""A class for working with graphs."""
+
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Set, List, Union
 
+from ast import literal_eval
 
+
+@dataclass(eq=False)
 class Node:
     """A class for working with of nodes in a graph."""
 
-    def __init__(self, position: Vector, radius: float, label: str = None):
-        self.position = position
-        self.radius = radius
-        self.label = label
+    position: Vector = None
+    radius: float = None
+    label: str = None
+    adjacent: Dict[Node, float] = field(default_factory=dict)
 
-        self.neighbours: Dict[Node, float] = {}
-        self.forces: List[Vector] = []
-
-    def get_x(self) -> float:
-        """Returns the x coordinate of the node."""
-        return self.position[0]
-
-    def get_y(self) -> float:
-        """Returns the y coordinate of the node."""
-        return self.position[1]
+    forces: List[Vector] = field(default_factory=list)
 
     def get_position(self) -> Vector:
         """Returns the y coordinate of the node."""
@@ -30,21 +26,17 @@ class Node:
         """Returns the radius of the node."""
         return self.radius
 
-    def get_neighbours(self) -> Dict[Node, float]:
-        """Returns the neighbours of the node."""
-        return self.neighbours
+    def get_adjacent(self) -> Dict[Node, float]:
+        """Returns the adjacent of the node."""
+        return self.adjacent
 
     def get_label(self) -> str:
         """Returns the label of the node."""
         return self.label
 
-    def set_x(self, value: float):
-        """Sets the x coordinate of the node to the specified value."""
-        self.position[0] = value
-
-    def set_y(self, value):
-        """Sets the y coordinate of the node to the specified value."""
-        self.position[1] = value
+    def set_radius(self, value: float):
+        """Returns the radius of the node."""
+        self.radius = value
 
     def set_position(self, value: Vector):
         """Sets the position of the node to the specified value."""
@@ -64,24 +56,27 @@ class Node:
             self.position += self.forces.pop()
 
 
+@dataclass
 class Graph:
     """A class for working with graphs."""
 
-    def __init__(self, directed=False, weighted=False):
-        self.directed = directed
-        self.weighted = weighted
+    directed: bool = False
+    weighted: bool = False
 
-        self.nodes: List[Node] = []
-        self.components: Set[Node] = []
+    nodes: List[Node] = field(default_factory=list)
+    components: Set[Node] = field(default_factory=list)
+
+    # a variable used to track, whether we need to recalculate components
+    graph_state: int = 0
 
     def calculate_components(self):
         """Calculate the components of the graph.
-        MAJOR TODO: make component calculation faster when only removing a Vertex."""
+        TODO: make component calculation faster when only removing a Vertex."""
         self.components = []
 
         for node in self.nodes:
             # the current set of nodes that we know are reachable from one another
-            working_set = set([node] + list(node.get_neighbours()))
+            working_set = set([node] + list(node.adjacent))
 
             # the index of the set that we added the working set to
             set_index = None
@@ -123,25 +118,25 @@ class Graph:
             elif n1_in_s or n2_in_s:
                 return False
 
-    def is_directed(self) -> bool:
+    def get_directed(self) -> bool:
         """Returns True if the graph is directed, else False."""
         return self.directed
 
-    def set_directed(self, value: bool):
+    def set_directed(self, directed: bool):
         """Sets, whether the graph is directed or not."""
-        if not value:
-            # make all vertexes go both ways
-            # also remove vertexes pointing to themselves -- we can't have that!
-            for node in self.get_nodes():
-                for neighbour in list(node.get_neighbours()):
+        # if we're converting to undirected, make all vertices go both ways
+        if not directed and not self.directed:
+            for node in self.nodes:
+                for neighbour in node.adjacent:
                     if node is neighbour:
+                        # no loops allowed!
                         self.remove_vertex(node, neighbour)
                     else:
                         self.add_vertex(neighbour, node, weight=0)
 
-        self.directed = value
+        self.directed = directed
 
-    def is_weighted(self) -> bool:
+    def get_weighted(self) -> bool:
         """Returns True if the graph is weighted and False otherwise."""
         return self.weighted
 
@@ -150,11 +145,12 @@ class Graph:
         self.weighted = value
 
     def get_weight(self, n1: Node, n2: Node) -> Union[float, None]:
-        """Returns the weight of the specified vertex and None if it doesn't exist."""
+        """Returns the weight of the specified vertex (and None if it doesn't exit or
+        the graph is not weighted)."""
         return (
             None
-            if not self.does_vertex_exist(n1, n2)
-            else self.nodes[self.nodes.index(n1)].neighbours[n2]
+            if not self.does_vertex_exist(n1, n2) or not self.weighted
+            else self.nodes[self.nodes.index(n1)].adjacent[n2]
         )
 
     def get_nodes(self) -> List[Node]:
@@ -167,51 +163,46 @@ class Graph:
         identifier!"""
         return "A" * (len(self.nodes) // 26) + chr(65 + len(self.nodes) % 26)
 
-    def add_node(self, position: Vector, radius: float, label=None) -> Node:
+    def add_node(self, pos: Vector = None, radius: float = None, label=None) -> Node:
         """Adds a new node to the graph and returns it."""
-        if label is None:
-            label = self.generate_label()
-
-        node = Node(position, radius, label)
-        self.nodes.append(node)
+        self.nodes.append(Node(pos, radius, label or self.generate_label()))
 
         self.calculate_components()
 
-        return node
+        return self.nodes[-1]
 
-    def remove_node(self, node_to_be_removed: Node):
-        """Deletes a node and all of the vertices that point to it from the graph."""
-        # remove the actual node from the node list
-        self.get_nodes().remove(node_to_be_removed)
+    def remove_node(self, n: Node):
+        """Removes the node from the graph."""
+        self.nodes.remove(n)
 
-        # remove all of its vertices
-        for node in self.get_nodes():
-            if node_to_be_removed in node.neighbours:
-                del node.get_neighbours()[node_to_be_removed]
+        # remove all vertices that point to it
+        for node in self.nodes:
+            if n in node.adjacent:
+                del node.adjacent[n]
 
         self.calculate_components()
 
     def add_vertex(self, n1: Node, n2: Node, weight: float = 0):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
-        if the graph is not directed and the node wants to point to itself -- we can't
-        allow that."""
+        if the graph is not directed and the node wants to point to itself)."""
         if n1 is n2 and not self.directed:
             return
 
         # from n1 to n2
-        n1.neighbours[n2] = weight
+        n1.adjacent[n2] = weight
 
         # from n2 to n1
         if not self.directed:
-            n2.neighbours[n1] = weight
+            n2.adjacent[n1] = weight
 
         self.calculate_components()
 
     def does_vertex_exist(self, n1: Node, n2: Node, ignore_direction=False) -> bool:
         """Returns True if a vertex exists between the two nodes and False otherwise."""
-        return n2 in n1.neighbours or (
-            (not self.directed or ignore_direction) and n1 in n2.neighbours
+        # TODO: this is not an ideal function to have
+        return (n2 in n1.adjacent) or (
+            (not self.directed or ignore_direction) and n1 in n2.adjacent
         )
 
     def toggle_vertex(self, n1: Node, n2: Node):
@@ -225,18 +216,90 @@ class Graph:
         """Removes a vertex from node n1 to node n2 (and vice versa, if it's not 
         directed). Only does so if the given vertex exists."""
         # from n1 to n2
-        if n2 in n1.neighbours:
-            del n1.neighbours[n2]
+        if n2 in n1.adjacent:
+            del n1.adjacent[n2]
 
         # from n2 to n1
-        if not self.directed and n1 in n2.neighbours:
-            del n2.neighbours[n1]
+        if not self.directed and n1 in n2.adjacent:
+            del n2.adjacent[n1]
 
         self.calculate_components()
 
     def complement(self):
         """Makes the graph the complement of itself."""
-        for n1 in self.get_nodes():
-            for n2 in self.get_nodes():
+        for n1 in self.nodes:
+            for n2 in self.nodes:
                 if self.directed or id(n1) < id(n2):
                     self.toggle_vertex(n1, n2)
+
+    @classmethod
+    def from_string(cls, string: str) -> Graph:
+        """Generates the graph from a given string."""
+        graph = None
+
+        node_dictionary = {}
+
+        # add each of the nodes of the given line to the graph
+        for line in filter(lambda x: len(x) != 0 or x[0] != "#", string.splitlines()):
+            parts = line.strip().split()
+
+            # initialize the graph from the first line, if it hasn't been done yet
+            if graph is None:
+                directed = parts[1] in ("->", "<-")
+                weighted = len(parts) == 3 + directed
+
+                graph = Graph(directed=directed, weighted=weighted)
+
+            # the formats are either 'A B' or 'A <something> B'
+            node_names = (parts[0], parts[1 + directed])
+
+            # if weight is present, the formats are:
+            # - 'A B num' for undirected graphs
+            # - 'A <something> B num' for directed graphs
+            weight = 0 if not weighted else literal_eval(parts[2 + directed])
+
+            # create node objects for each of the names (if it hasn't been done yet)
+            for name in node_names:
+                if name not in node_dictionary:
+                    # add it to graph with default values
+                    node_dictionary[name] = graph.add_node(label=name)
+
+            # get the node objects from the names
+            n1, n2 = node_dictionary[node_names[0]], node_dictionary[node_names[1]]
+
+            # possibly switch places for a reverse arrow
+            if parts[1] == "<-":
+                n1, n2 = n2, n1
+
+            # add the vertex
+            graph.add_vertex(n1, n2, weight)
+
+        return graph
+
+    def to_string(self) -> str:
+        """Exports the graph, returning the string."""
+        string = ""
+
+        # for each pair n1, n2 where n1_i < n2_i
+        for i, n1 in enumerate(self.nodes):
+            for n2 in self.nodes[i + 1 :]:
+                # TODO: simplify this code
+                if self.does_vertex_exist(n1, n2):
+                    string += (
+                        n1.get_label()
+                        + (" -> " if self.directed else " ")
+                        + n2.get_label()
+                        + (str(self.get_weight(n1, n2)) if self.weighted else "")
+                        + "\n"
+                    )
+
+                if self.does_vertex_exist(n2, n1) and self.directed:
+                    string += (
+                        n1.get_label()
+                        + (" <- " if self.directed else " ")
+                        + n2.get_label()
+                        + (str(self.get_weight(n2, n1)) if self.weighted else "")
+                        + "\n"
+                    )
+
+        return string
