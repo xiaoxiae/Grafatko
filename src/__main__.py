@@ -8,9 +8,8 @@ from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-from qtmodern import styles
-
-import webbrowser
+from qtmodern import styles  # themes
+import webbrowser  # opening the browser
 
 
 # UTILITIES
@@ -21,6 +20,9 @@ from utilities import *
 
 
 class Canvas(QWidget):
+    # by how much the background is darker and border lighter to standard widget
+    lighten_coefficient = 10
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -28,13 +30,31 @@ class Canvas(QWidget):
         """Paints the board."""
         painter = QPainter(self)
 
-        painter.setPen(QPen(Qt.black, Qt.SolidLine))
-        painter.setBrush(QBrush(Qt.white, Qt.SolidPattern))
-        painter.drawRect(0, 0, self.width(), self.height())
+        painter.setBrush(
+            QBrush(
+                self.palette()
+                .color(QPalette.Background)
+                .lighter(100 + self.lighten_coefficient),
+                Qt.SolidPattern,
+            )
+        )
+
+        painter.setPen(
+            QPen(
+                self.palette()
+                .color(QPalette.Background)
+                .lighter(100 - self.lighten_coefficient),
+                Qt.SolidLine,
+            )
+        )
+
+        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
+        # TODO: command line argument parsing
+
         super().__init__()
 
         # Widgets
@@ -42,15 +62,15 @@ class GraphVisualizer(QMainWindow):
         self.menubar = self.menuBar()
 
         self.file_menu = self.menubar.addMenu("&File")
-        self.file_menu.addAction(QAction("Import", self))
-        self.file_menu.addAction(QAction("Export", self))
+        self.file_menu.addAction(QAction("&Import", self))
+        self.file_menu.addAction(QAction("&Export", self))
         self.file_menu.addSeparator()
-        self.file_menu.addAction(QAction("Exit", self, triggered=exit))
+        self.file_menu.addAction(QAction("&Quit", self, triggered=exit))
 
         self.preferences_menu = self.menubar.addMenu("&Preferences")
         self.preferences_menu.addAction(
             QAction(
-                "Dark Theme",
+                "&Dark Theme",
                 self,
                 checkable=True,
                 triggered=partial(
@@ -61,11 +81,11 @@ class GraphVisualizer(QMainWindow):
         )
 
         self.help_menu = self.menubar.addMenu("&Help")
-        self.help_menu.addAction(QAction("Manual", self))
-        self.help_menu.addAction(QAction("About", self))
+        self.help_menu.addAction(QAction("&Manual", self))
+        self.help_menu.addAction(QAction("&About", self))
         self.help_menu.addAction(
             QAction(
-                "Source Code",
+                "&Source Code",
                 self,
                 triggered=partial(
                     webbrowser.open, "https://github.com/xiaoxiae/GraphVisualizer"
@@ -75,10 +95,12 @@ class GraphVisualizer(QMainWindow):
 
         ## Canvas (main widget)
         self.canvas = Canvas(parent=self)
-        self.canvas.setMinimumSize(100, 200)  # random minimum size
+        self.canvas.setMinimumSize(100, 200)  # random reasonable minimum size
         self.setCentralWidget(self.canvas)
 
         ## Dock
+        # TODO: shrink after leaving the dock
+        # TODO: disable vertical resizing
         self.dock_menu = QDockWidget("Settings", self)
         self.dock_menu.setAllowedAreas(Qt.BottomDockWidgetArea)  # float bottom
         self.dock_menu.setFeatures(QDockWidget.DockWidgetFloatable)  # hide close button
