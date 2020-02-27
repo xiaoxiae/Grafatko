@@ -11,20 +11,8 @@ from ast import literal_eval
 class Node:
     """A class for working with of nodes in a graph."""
 
-    position: Vector = None
-    radius: float = None
     label: str = None
     adjacent: Dict[Node, float] = field(default_factory=dict)
-
-    forces: List[Vector] = field(default_factory=list)
-
-    def get_position(self) -> Vector:
-        """Returns the y coordinate of the node."""
-        return self.position
-
-    def get_radius(self) -> float:
-        """Returns the radius of the node."""
-        return self.radius
 
     def get_adjacent(self) -> Dict[Node, float]:
         """Returns the adjacent of the node."""
@@ -34,26 +22,9 @@ class Node:
         """Returns the label of the node."""
         return self.label
 
-    def set_radius(self, value: float):
-        """Returns the radius of the node."""
-        self.radius = value
-
-    def set_position(self, value: Vector):
-        """Sets the position of the node to the specified value."""
-        self.position = value
-
     def set_label(self, label: str):
         """Sets the label of the node to the specified value."""
         self.label = label
-
-    def add_force(self, force: Vector):
-        """Adds a force that is acting upon the node to the force list."""
-        self.forces.append(force)
-
-    def evaluate_forces(self):
-        """Evaluates all of the forces acting upon the node and moves it accordingly."""
-        while len(self.forces) != 0:
-            self.position += self.forces.pop()
 
 
 @dataclass
@@ -163,9 +134,9 @@ class Graph:
         identifier!"""
         return "A" * (len(self.nodes) // 26) + chr(65 + len(self.nodes) % 26)
 
-    def add_node(self, pos: Vector = None, radius: float = None, label=None) -> Node:
+    def add_node(self, label=None) -> Node:
         """Adds a new node to the graph and returns it."""
-        self.nodes.append(Node(pos, radius, label or self.generate_label()))
+        self.nodes.append(Node(label or self.generate_label()))
 
         self.calculate_components()
 

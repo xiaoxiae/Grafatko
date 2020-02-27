@@ -118,11 +118,10 @@ class Vector:
         """Returns a vector with absolute values of the components of this vector."""
         return Vector(*iter(abs(component) for component in self))
 
+    def distance(self, other: Vector):
+        """Returns the distance of two Vectors in space."""
+        return (sqrt(sum(map(lambda x: sum(x) ** 2, zip(self, -other)))),)
+
     def repeat(self, n):
         """Performs sequence repetition on the vector (n times)."""
         return Vector(*self.values * n)
-
-
-def distance(p1: Vector, p2: Vector):
-    """Returns the distance of two points in space (represented as Vectors)."""
-    return sqrt((p1[0] - p2[0]) ** 2 + (p1[1] - p2[1]) ** 2)
