@@ -75,8 +75,38 @@ class GraphVisualizer(QMainWindow):
 
         ## Canvas (main widget)
         self.canvas = Canvas(parent=self)
-        self.canvas.setFixedSize(50, 50)
+        self.canvas.setMinimumSize(100, 200)  # random minimum size
         self.setCentralWidget(self.canvas)
+
+        ## Dock
+        self.dock_menu = QDockWidget("Settings", self)
+        self.dock_menu.setAllowedAreas(Qt.BottomDockWidgetArea)  # float bottom
+        self.dock_menu.setFeatures(QDockWidget.DockWidgetFloatable)  # hide close button
+
+        self.dock_widget = QWidget()
+        layout = QGridLayout()
+
+        ### Graph options
+        layout.addWidget(QLabel(self, text="Graph"), 0, 0)
+        layout.addWidget(QCheckBox("directed", self), 1, 0)
+        layout.addWidget(QCheckBox("weighted", self), 2, 0)
+        layout.addWidget(QCheckBox("multi", self), 3, 0)
+
+        ### Visual options
+        layout.addWidget(QLabel(self, text="Visual"), 0, 1)
+        layout.addWidget(QCheckBox("labels", self), 1, 1)
+        layout.addWidget(QCheckBox("gravity", self), 2, 1)
+
+        ### Graph actions
+        layout.addWidget(QLabel(self, text="Actions"), 0, 2)
+        layout.addWidget(QPushButton("complement", self), 1, 2)
+        layout.addWidget(QPushButton("reorient", self), 2, 2)
+
+        self.dock_widget.setLayout(layout)
+
+        ### Set the dock menu as the dock widget for the app
+        self.dock_menu.setWidget(self.dock_widget)
+        self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_menu)
 
         # WINDOW SETTINGS
         self.show()
