@@ -35,13 +35,13 @@ class Graph:
     weighted: bool = False
 
     nodes: List[Node] = field(default_factory=list)
-    components: Set[Node] = field(default_factory=list)
+    components: List[Set[Node]] = field(default_factory=list)
 
     # a variable used to track, whether we need to recalculate components
     graph_state: int = 0
 
-    def calculate_components(self):
-        """Calculate the components of the graph.
+    def recalculate_weakly_connected(self):
+        """Recalculate sets of nodes that are weakly connected.
         TODO: make component calculation faster when only removing a Vertex."""
         self.components = []
 
@@ -76,17 +76,15 @@ class Graph:
             if set_index is None:
                 self.components.append(working_set)
 
-    def share_component(self, n1: Node, n2: Node) -> bool:
-        """Returns True if both of the nodes are in the same component, else False."""
+    def weakly_connected(self, n1: Node, n2: Node) -> bool:
+        """Returns True if both of the nodes are weakly connected, else False."""
         for component in self.components:
-            n1_in_s, n2_in_s = n1 in component, n2 in component
-
             # if both are in one set, we know for certain that they share a set
-            # if only one is in a set, we know for certain that they can't share a set
-            # otherwise, we can't be sure and have to check additional sets
-            if n1_in_s and n2_in_s:
+            # if only one is, we know that they can't share a set
+            # otherwise we don't know and have to check more sets
+            if (n1 in component) and (n2 in component):
                 return True
-            elif n1_in_s or n2_in_s:
+            elif n1 in component or n2 in component:
                 return False
 
     def get_directed(self) -> bool:
@@ -95,7 +93,7 @@ class Graph:
 
     def set_directed(self, directed: bool):
         """Sets, whether the graph is directed or not."""
-        # if we're converting to undirected, make all vertices go both ways
+        # if we're converting to undirected, make all current vertices go both ways
         if not directed and not self.directed:
             for node in self.nodes:
                 for neighbour in node.adjacent:
@@ -103,7 +101,7 @@ class Graph:
                         # no loops allowed!
                         self.remove_vertex(node, neighbour)
                     else:
-                        self.add_vertex(neighbour, node, weight=0)
+                        self.add_vertex(neighbour, node)
 
         self.directed = directed
 
@@ -120,7 +118,7 @@ class Graph:
         the graph is not weighted)."""
         return (
             None
-            if not self.does_vertex_exist(n1, n2) or not self.weighted
+            if not self.is_vertex(n1, n2)
             else self.nodes[self.nodes.index(n1)].adjacent[n2]
         )
 
@@ -128,19 +126,11 @@ class Graph:
         """Returns a list of nodes of the graph."""
         return self.nodes
 
-    def generate_label(self) -> str:
-        """Returns a node label, based on the number of nodes in the tree in the form of
-        A, B, C, ..., AA, AB, AC ...; note that the label is not meant to be a unique 
-        identifier!"""
-        return "A" * (len(self.nodes) // 26) + chr(65 + len(self.nodes) % 26)
+    def add_node(self, node: Node):
+        """Adds a new node to the graph."""
+        self.nodes.append(node)
 
-    def add_node(self, label=None) -> Node:
-        """Adds a new node to the graph and returns it."""
-        self.nodes.append(Node(label or self.generate_label()))
-
-        self.calculate_components()
-
-        return self.nodes[-1]
+        self.recalculate_weakly_connected()
 
     def remove_node(self, n: Node):
         """Removes the node from the graph."""
@@ -151,9 +141,9 @@ class Graph:
             if n in node.adjacent:
                 del node.adjacent[n]
 
-        self.calculate_components()
+        self.recalculate_weakly_connected()
 
-    def add_vertex(self, n1: Node, n2: Node, weight: float = 0):
+    def add_vertex(self, n1: Node, n2: Node, weight: float = None):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
         if the graph is not directed and the node wants to point to itself)."""
@@ -167,18 +157,15 @@ class Graph:
         if not self.directed:
             n2.adjacent[n1] = weight
 
-        self.calculate_components()
+        self.recalculate_weakly_connected()
 
-    def does_vertex_exist(self, n1: Node, n2: Node, ignore_direction=False) -> bool:
+    def is_vertex(self, n1: Node, n2: Node) -> bool:
         """Returns True if a vertex exists between the two nodes and False otherwise."""
-        # TODO: this is not an ideal function to have
-        return (n2 in n1.adjacent) or (
-            (not self.directed or ignore_direction) and n1 in n2.adjacent
-        )
+        return n2 in n1.adjacent
 
     def toggle_vertex(self, n1: Node, n2: Node):
         """Toggles a connection between to vertexes."""
-        if self.does_vertex_exist(n1, n2):
+        if self.is_vertex(n1, n2):
             self.remove_vertex(n1, n2)
         else:
             self.add_vertex(n1, n2)
@@ -194,7 +181,7 @@ class Graph:
         if not self.directed and n1 in n2.adjacent:
             del n2.adjacent[n1]
 
-        self.calculate_components()
+        self.recalculate_weakly_connected()
 
     def complement(self):
         """Makes the graph the complement of itself."""
@@ -207,7 +194,6 @@ class Graph:
     def from_string(cls, string: str) -> Graph:
         """Generates the graph from a given string."""
         graph = None
-
         node_dictionary = {}
 
         # add each of the nodes of the given line to the graph
@@ -233,7 +219,7 @@ class Graph:
             for name in node_names:
                 if name not in node_dictionary:
                     # add it to graph with default values
-                    node_dictionary[name] = graph.add_node(label=name)
+                    node_dictionary[name] = graph.add_node(Node(label=name))
 
             # get the node objects from the names
             n1, n2 = node_dictionary[node_names[0]], node_dictionary[node_names[1]]
@@ -255,7 +241,7 @@ class Graph:
         for i, n1 in enumerate(self.nodes):
             for n2 in self.nodes[i + 1 :]:
                 # TODO: simplify this code
-                if self.does_vertex_exist(n1, n2):
+                if self.is_vertex(n1, n2):
                     string += (
                         n1.get_label()
                         + (" -> " if self.directed else " ")
@@ -264,7 +250,7 @@ class Graph:
                         + "\n"
                     )
 
-                if self.does_vertex_exist(n2, n1) and self.directed:
+                if self.is_vertex(n2, n1) and self.directed:
                     string += (
                         n1.get_label()
                         + (" <- " if self.directed else " ")

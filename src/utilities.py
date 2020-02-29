@@ -120,7 +120,7 @@ class Vector:
 
     def distance(self, other: Vector):
         """Returns the distance of two Vectors in space."""
-        return (sqrt(sum(map(lambda x: sum(x) ** 2, zip(self, -other)))),)
+        return sqrt(sum(map(lambda x: sum(x) ** 2, zip(self, -other))))
 
     def repeat(self, n):
         """Performs sequence repetition on the vector (n times)."""

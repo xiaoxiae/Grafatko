@@ -1,6 +1,6 @@
 import sys
 
-# GOOD CODE
+# CLEAN CODE
 from typing import *
 
 # GUI
@@ -14,41 +14,123 @@ import webbrowser  # opening the browser
 
 # UTILITIES
 from functools import partial
+from random import random
+from math import radians
 
 from graph import *
 from utilities import *
 
 
+class DrawableNode(Node):
+    """A wrapper for a node that has some real attributes. Is done so that the actual
+    graph.py code is cleaner."""
+
+    def __init__(self, position, *arg):
+        self.position: Vector = position
+        self.forces: List[Vector] = []
+
+        super().__init__(*arg)
+
+    def get_position(self) -> Vector:
+        """Return the position of the node."""
+        return self.position
+
+    def set_position(self, position: Vector):
+        """Return the position of the node."""
+        self.position = position
+
+    def add_force(self, force: Vector):
+        """Adds a force that is acting upon the node to the force list."""
+        self.forces.append(force)
+
+    def evaluate_forces(self):
+        """Evaluates all of the forces acting upon the node and moves it accordingly."""
+        while len(self.forces) != 0:
+            self.position += self.forces.pop()
+
+
 class Canvas(QWidget):
-    # by how much the background is darker and border lighter to standard widget
-    lighten_coefficient = 10
+    # WIDGET OPTIONS
+    scale_coefficient: float = 8  # by how much the scale changes on scroll
+
+    # GRAPH OPTIONS
+    node_radius = 20
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        # the graph the canvas is displaying
+        self.graph = Graph()
+
+        # positioning
+        self.scale: float = 1
+        self.translation: float = Vector(0, 0)
+
+        # timer that runs the simulation (60 times a second... once every ~= 17ms)
+        QTimer(self, interval=17, timeout=self.update).start()
+
+    def update(self, *args):
+        """A function that gets periodically called to update the canvas."""
+        # the forces that act on the nodes
+        repulsion = lambda distance: 1 / distance * 10
+        attraction = lambda distance: -(distance - leash_length) / 10
+
+        for i, n1 in enumerate(self.graph.get_nodes()):
+            for n2 in self.graph.get_nodes()[i + 1 :]:
+                # if they are not at least weakly connected, no forces act on them
+                if not self.graph.weakly_connected(n1, n2):
+                    continue
+
+                d = n1.get_position().distance(n2.get_position())
+
+                # if they are on top of each other, nudge one of them slightly
+                if d == 0:
+                    n1.add_force(Vector(random(), random()))
+                    continue
+
+                # unit vector from n1 to n2
+                uv = (n2.get_position() - n1.get_position()).unit()
+
+                # the size of the repel force between the two nodes
+                fr = repulsion(d)
+
+                # add a repel force to each of the nodes, in the opposite directions
+                n1.add_force(-uv * fr)
+                n2.add_force(uv * fr)
+
+                # if they are also connected, add the attraction force
+                # the direction does not matter -- it would look weird for directed
+                if self.graph.is_vertex(n1, n2) or self.graph.is_vertex(n2, n1):
+                    fa = attraction_force(d)
+
+                    n1.add_force(-uv * fa)
+                    n2.add_force(uv * fa)
+
+            n1.evaluate_forces()
+
+        super().update(*args)
+
     def paintEvent(self, event):
         """Paints the board."""
         painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing, True)
 
-        painter.setBrush(
-            QBrush(
-                self.palette()
-                .color(QPalette.Background)
-                .lighter(100 + self.lighten_coefficient),
-                Qt.SolidPattern,
-            )
-        )
+        # translate the world
+        painter.translate(*self.translation)
+        painter.scale(self.scale, self.scale)
 
-        painter.setPen(
-            QPen(
-                self.palette()
-                .color(QPalette.Background)
-                .lighter(100 - self.lighten_coefficient),
-                Qt.SolidLine,
-            )
-        )
+    def wheelEvent(self, event):
+        """Is called when the mouse wheel is moved; node rotation and zoom."""
+        # positive/negative for scrolling away from/towards the user
+        scroll_distance = radians(event.angleDelta().y() / self.scale_coefficient)
 
-        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
+        mouse_coordinates = Vector(event.pos().x(), event.pos().y())
+
+        prev_scale = self.scale
+        self.scale *= 2 ** (scroll_distance)
+
+        # adjust translation so the x and y of the mouse stay in the same spot
+        self.translation -= mouse_coordinates * (self.scale - prev_scale)
 
 
 class GraphVisualizer(QMainWindow):
