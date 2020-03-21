@@ -18,7 +18,6 @@ from random import random
 from math import radians
 
 from graph import *
-from drawable_graph import *
 from utilities import *
 import webbrowser  # opening the browser
 
@@ -35,19 +34,22 @@ class Canvas(QWidget):
     # WIDGET OPTIONS
     lighten_coefficient = 10  # how much lighter/darker the canvas is (to background)
 
+    # positioning
     scale_coefficient: float = 8  # by how much the scale changes on scroll
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # the graph the canvas is displaying
-        self.graph = DrawableGraph()
+        # MOUSE
+        self.setMouseTracking(True)
 
-        # positioning
         self.scale: float = 1
         self.translation: float = Vector(0, 0)
 
         self.mouse = Mouse()
+
+        # GRAPH
+        self.graph = DrawableGraph()
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -99,15 +101,18 @@ class Canvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
 
-        # first, paint the background
-        self.paint_background(painter)
+        # clipping
+        painter.setClipRect(0, 0, self.width(), self.height())
 
-        # then, paint the graph
-        self.graph.draw(painter)
+        # paint the background
+        self.paint_background(painter)
 
         # translate the world
         painter.translate(*self.translation)
         painter.scale(self.scale, self.scale)
+
+        # paint the graph
+        self.graph.draw(painter)
 
     def paint_background(self, painter: QPainter):
         """Paint the background of the widget."""
@@ -159,19 +164,30 @@ class Canvas(QWidget):
         self.mouse.pressed = True
         self.mouse.position = Vector(event.pos().x(), event.pos().y())
 
-        self.graph.add_node(DrawableNode(self.mouse_position()))
+        if event.button() == Qt.LeftButton:
+            pass
+            # TODO left
+
+        elif event.button() == Qt.RightButton:
+            # TODO right
+            if self.graph.node_at_position(self.mouse_position()) is None:
+                self.graph.add_node(DrawableNode(self.mouse_position()))
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is moved; node rotation and zoom."""
         # positive/negative for scrolling away from/towards the user
         scroll_distance = radians(event.angleDelta().y() / self.scale_coefficient)
 
+        # NOTE: it is _super important_ that mouse_position() gets called before
+        # scale is adjusted, since the scale changes what mouse_position() returns...
+        position = self.mouse_position()
+
         # adjust the scale
         previous_scale = self.scale
         self.scale *= 2 ** scroll_distance
 
         # adjust translation so the x and y of the mouse stay in the same spot
-        self.translation -= self.mouse_position() * (self.scale - previous_scale)
+        self.translation -= position * (self.scale - previous_scale)
 
 
 class GraphVisualizer(QMainWindow):

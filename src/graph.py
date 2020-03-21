@@ -269,3 +269,9 @@ class DrawableGraph(Drawable, Graph):
         # draw all nodes
         for node in self.get_nodes():
             node.draw(painter)
+
+    def node_at_position(self, position: Vector) -> Union[None, DrawableNode]:
+        """Returns a Node if it is at the given position, or None."""
+        for node in self.get_nodes():
+            if position.distance(node.get_position()) <= 1:
+                return node
