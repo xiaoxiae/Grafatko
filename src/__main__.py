@@ -207,6 +207,10 @@ class Canvas(QWidget):
         # adjust translation so the x and y of the mouse stay in the same spot
         self.translation -= position * (self.scale - previous_scale)
 
+    def get_graph(self):
+        """Get the current graph."""
+        return self.graph
+
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
@@ -270,8 +274,26 @@ class GraphVisualizer(QMainWindow):
 
         ### Graph options
         layout.addWidget(QLabel(self, text="Graph"), 0, 0)
-        layout.addWidget(QCheckBox("directed", self), 1, 0)
-        layout.addWidget(QCheckBox("weighted", self), 2, 0)
+
+        layout.addWidget(
+            QCheckBox(
+                "directed",
+                self,
+                toggled=lambda value: self.canvas.get_graph().set_directed(value),
+            ),
+            1,
+            0,
+        )
+
+        layout.addWidget(
+            QCheckBox(
+                "weighted",
+                self,
+                toggled=lambda value: self.canvas.get_graph().set_weighted(value),
+            ),
+            2,
+            0,
+        )
         layout.addWidget(QCheckBox("multi", self), 3, 0)
 
         ### Visual options

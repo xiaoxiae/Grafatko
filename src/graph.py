@@ -264,7 +264,7 @@ class DrawableNode(Drawable, Node):
 
 
 class DrawableGraph(Drawable, Graph):
-    arrowhead_size: float = 0.8
+    arrowhead_size: float = 0.5
     arrow_separation: float = pi / 7
 
     def draw(self, painter: QPainter):
@@ -290,15 +290,16 @@ class DrawableGraph(Drawable, Graph):
             start, end = self.__get_vertex_position(n1, n2)
 
             # draw the head of a directed arrow, which is an equilateral triangle
-            uv = (end - start).unit()
+            if self.get_directed():
+                uv = (end - start).unit()
 
-            # the brush color is given by the current pen
-            painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
-            painter.drawPolygon(
-                QPointF(*end),
-                QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
-                QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
-            )
+                # the brush color is given by the current pen
+                painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
+                painter.drawPolygon(
+                    QPointF(*end),
+                    QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+                    QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+                )
 
         painter.drawLine(QPointF(*start), QPointF(*end))
 
@@ -321,7 +322,7 @@ class DrawableGraph(Drawable, Graph):
         if self.get_directed():
             # if the graph is directed and a vertex exists that goes the other way, we
             # have to move the start end end so the vertexes don't overlap
-            if self.graph.does_vertex_exist(n2, n1):
+            if self.is_vertex(n2, n1):
                 start = start.rotated(self.arrow_separation, n1_p)
                 end = end.rotated(-self.arrow_separation, n2_p)
 
