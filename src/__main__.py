@@ -21,40 +21,11 @@ from graph import *
 from utilities import *
 
 
-class DrawableNode(Node):
-    """A wrapper for a node that has some real attributes. Is done so that the actual
-    graph.py code is cleaner."""
-
-    def __init__(self, position, *arg):
-        self.position: Vector = position
-        self.forces: List[Vector] = []
-
-        super().__init__(*arg)
-
-    def get_position(self) -> Vector:
-        """Return the position of the node."""
-        return self.position
-
-    def set_position(self, position: Vector):
-        """Return the position of the node."""
-        self.position = position
-
-    def add_force(self, force: Vector):
-        """Adds a force that is acting upon the node to the force list."""
-        self.forces.append(force)
-
-    def evaluate_forces(self):
-        """Evaluates all of the forces acting upon the node and moves it accordingly."""
-        while len(self.forces) != 0:
-            self.position += self.forces.pop()
-
-
 class Canvas(QWidget):
     # WIDGET OPTIONS
-    scale_coefficient: float = 8  # by how much the scale changes on scroll
+    lighten_coefficient = 10  # how much lighter/darker the canvas is (to background)
 
-    # GRAPH OPTIONS
-    node_radius = 20
+    scale_coefficient: float = 8  # by how much the scale changes on scroll
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -73,7 +44,7 @@ class Canvas(QWidget):
         """A function that gets periodically called to update the canvas."""
         # the forces that act on the nodes
         repulsion = lambda distance: 1 / distance * 10
-        attraction = lambda distance: -(distance - leash_length) / 10
+        attraction = lambda distance: -(distance - 80) / 10
 
         for i, n1 in enumerate(self.graph.get_nodes()):
             for n2 in self.graph.get_nodes()[i + 1 :]:
@@ -101,7 +72,7 @@ class Canvas(QWidget):
                 # if they are also connected, add the attraction force
                 # the direction does not matter -- it would look weird for directed
                 if self.graph.is_vertex(n1, n2) or self.graph.is_vertex(n2, n1):
-                    fa = attraction_force(d)
+                    fa = attraction(d)
 
                     n1.add_force(-uv * fa)
                     n2.add_force(uv * fa)
@@ -115,9 +86,25 @@ class Canvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
 
+        self.paint_background(painter)
+
         # translate the world
         painter.translate(*self.translation)
         painter.scale(self.scale, self.scale)
+
+    def paint_background(self, painter: QPainter):
+        """Paint the background of the widget."""
+        # color shenanigans
+        default_background = self.palette().color(QPalette.Background)
+
+        background = default_background.lighter(100 + self.lighten_coefficient)
+        border = default_background.darker(100 + self.lighten_coefficient)
+
+        painter.setBrush(QBrush(background, Qt.SolidPattern))
+        painter.setPen(QPen(border, Qt.SolidLine))
+
+        # draw background
+        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is moved; node rotation and zoom."""
@@ -136,10 +123,16 @@ class Canvas(QWidget):
 class GraphVisualizer(QMainWindow):
     def __init__(self):
         # TODO: command line argument parsing
+        # -- dark and stuff
 
         super().__init__()
 
         # Widgets
+        ## Canvas (main widget)
+        self.canvas = Canvas(parent=self)
+        self.canvas.setMinimumSize(100, 200)  # reasonable minimum size
+        self.setCentralWidget(self.canvas)
+
         ## Top menu bar
         self.menubar = self.menuBar()
 
@@ -170,15 +163,12 @@ class GraphVisualizer(QMainWindow):
                 "&Source Code",
                 self,
                 triggered=partial(
-                    webbrowser.open, "https://github.com/xiaoxiae/GraphVisualizer"
+                    # TODO: make non-blocking
+                    webbrowser.open,
+                    "https://github.com/xiaoxiae/GraphVisualizer",
                 ),
             )
         )
-
-        ## Canvas (main widget)
-        self.canvas = Canvas(parent=self)
-        self.canvas.setMinimumSize(100, 200)  # random reasonable minimum size
-        self.setCentralWidget(self.canvas)
 
         ## Dock
         # TODO: shrink after leaving the dock
