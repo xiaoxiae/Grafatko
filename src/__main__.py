@@ -1,15 +1,15 @@
 import sys
 
-# CLEAN CODE
+# CLEAN CODE :)
 from typing import *
 
-# GUI
+
+# QT
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
 from qtmodern import styles  # themes
-import webbrowser  # opening the browser
 
 
 # UTILITIES
@@ -18,7 +18,9 @@ from random import random
 from math import radians
 
 from graph import *
+from drawable_graph import *
 from utilities import *
+import webbrowser  # opening the browser
 
 
 @dataclass
@@ -39,7 +41,7 @@ class Canvas(QWidget):
         super().__init__(parent)
 
         # the graph the canvas is displaying
-        self.graph = Graph()
+        self.graph = DrawableGraph()
 
         # positioning
         self.scale: float = 1
@@ -58,9 +60,10 @@ class Canvas(QWidget):
 
         for i, n1 in enumerate(self.graph.get_nodes()):
             for n2 in self.graph.get_nodes()[i + 1 :]:
+                # TODO: add weakly_connected check
                 # if they are not at least weakly connected, no forces act on them
-                if not self.graph.weakly_connected(n1, n2):
-                    continue
+                # if not self.graph.weakly_connected(n1, n2):
+                #    continue
 
                 d = n1.get_position().distance(n2.get_position())
 
@@ -96,7 +99,11 @@ class Canvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
 
+        # first, paint the background
         self.paint_background(painter)
+
+        # then, paint the graph
+        self.graph.draw(painter)
 
         # translate the world
         painter.translate(*self.translation)
@@ -140,15 +147,19 @@ class Canvas(QWidget):
 
     def mouseMoveEvent(self, event):
         """Is called when the mouse is moved across the window."""
-        self.mouse.position = Vector(event.pos().x(), event.pos().x())
+        self.mouse.position = Vector(event.pos().x(), event.pos().y())
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
         self.mouse.pressed = False
+        self.mouse.position = Vector(event.pos().x(), event.pos().y())
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is released."""
         self.mouse.pressed = True
+        self.mouse.position = Vector(event.pos().x(), event.pos().y())
+
+        self.graph.add_node(DrawableNode(self.mouse_position()))
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is moved; node rotation and zoom."""
@@ -157,7 +168,7 @@ class Canvas(QWidget):
 
         # adjust the scale
         previous_scale = self.scale
-        self.scale *= 2 ** (scroll_distance)
+        self.scale *= 2 ** scroll_distance
 
         # adjust translation so the x and y of the mouse stay in the same spot
         self.translation -= self.mouse_position() * (self.scale - previous_scale)
@@ -165,8 +176,8 @@ class Canvas(QWidget):
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
-        # TODO: command line argument parsing
-        # -- dark and stuff
+        # TODO: command line argument parsing (--dark and stuff)
+        # TODO: hide toolbar with f-something
 
         super().__init__()
 

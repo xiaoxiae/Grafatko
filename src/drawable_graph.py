@@ -1,15 +1,18 @@
-"""A class for working with graphs."""
+"""A wrapper for working with graphs that can be drawn."""
 
 from __future__ import annotations
 from dataclasses import dataclass, field
-from typing import Set, List, Union
+from typing import *
 
 from graph import *
 from utilities import *
 
 from abc import *
 
+# QT
+from PyQt5.QtCore import *
 from PyQt5.QtGui import *
+from PyQt5.QtWidgets import *
 
 
 class Drawable(ABC):
@@ -33,8 +36,9 @@ class DrawableNode(Drawable, Node):
         self.adjacent_pen: Dict[Node, QPen] = field(default_factory=dict)
 
         # for drawing the node itself
-        self.pen: QPen = None
-        self.brush: QBrush = None
+        # TODO take this from a configuration file
+        self.pen: QPen = QPen(Qt.red, Qt.SolidLine)
+        self.brush: QBrush = QBrush(Qt.red, Qt.SolidPattern)
 
     def get_adjacent(self) -> Dict[Node, Tuple[Union[int, float], Color]]:
         """Returns nodes adjacent to the node and the vertex colors that they have."""
@@ -57,12 +61,19 @@ class DrawableNode(Drawable, Node):
         while len(self.forces) != 0:
             self.position += self.forces.pop()
 
-    def draw():
-        pass
+    def draw(self, painter: QPainter):
+        """Draw the node at its current position with radius 1."""
+        painter.setBrush(self.brush)
+        painter.setPen(self.pen)
+
+        painter.drawEllipse(QPointF(*self.position), 1, 1)
 
 
 class DrawableGraph(Drawable, Graph):
-    def draw(self):
-        # draw each node
-        # draw each vertex
-        pass
+    def draw(self, painter: QPainter):
+        """Draw the entire graph."""
+        # TODO draw all vertices
+
+        # draw all nodes
+        for node in self.get_nodes():
+            node.draw(painter)
