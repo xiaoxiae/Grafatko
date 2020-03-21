@@ -43,13 +43,14 @@ class Canvas(QWidget):
         # MOUSE
         self.setMouseTracking(True)
 
-        self.scale: float = 1
+        self.scale: float = 10
         self.translation: float = Vector(0, 0)
 
         self.mouse = Mouse()
 
         # GRAPH
         self.graph = DrawableGraph()
+        self.selected_nodes = None
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -57,8 +58,8 @@ class Canvas(QWidget):
     def update(self, *args):
         """A function that gets periodically called to update the canvas."""
         # the forces that act on the nodes
-        repulsion = lambda distance: 1 / distance * 10
-        attraction = lambda distance: -(distance - 80) / 10
+        repulsion = lambda distance: (1 / distance) ** 2
+        attraction = lambda distance: -(distance - 8) / 10
 
         for i, n1 in enumerate(self.graph.get_nodes()):
             for n2 in self.graph.get_nodes()[i + 1 :]:
@@ -164,14 +165,31 @@ class Canvas(QWidget):
         self.mouse.pressed = True
         self.mouse.position = Vector(event.pos().x(), event.pos().y())
 
+        shift_pressed = QApplication.keyboardModifiers() == Qt.ShiftModifier
+
         if event.button() == Qt.LeftButton:
-            pass
-            # TODO left
+            # either select the node, or add it to selected when shift is pressed
+            if (node := self.graph.node_at_position(self.mouse_position())) != None:
+                if not shift_pressed or self.selected_nodes == None:
+                    self.selected_nodes = []
+
+                self.selected_nodes.append(node)
+
+            # else deselect them all
+            else:
+                self.selected_nodes = None
 
         elif event.button() == Qt.RightButton:
-            # TODO right
-            if self.graph.node_at_position(self.mouse_position()) is None:
-                self.graph.add_node(DrawableNode(self.mouse_position()))
+            # if there isn't a node at the position, add it
+            if (node := self.graph.node_at_position(self.mouse_position())) is None:
+                node = DrawableNode(self.mouse_position())
+
+                self.graph.add_node(node)
+
+            # if there is a node and if some nodes are selected, connect them to it
+            if self.selected_nodes is not None:
+                for selected_node in self.selected_nodes:
+                    self.graph.add_vertex(selected_node, node)
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is moved; node rotation and zoom."""
