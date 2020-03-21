@@ -21,6 +21,14 @@ from graph import *
 from utilities import *
 
 
+@dataclass
+class Mouse:
+    """A small class for storing information about the mouse position on canvas."""
+
+    position: Vector = None  # its position on the app window
+    pressed: Vector = None  # whether it is currently being pressed
+
+
 class Canvas(QWidget):
     # WIDGET OPTIONS
     lighten_coefficient = 10  # how much lighter/darker the canvas is (to background)
@@ -36,6 +44,8 @@ class Canvas(QWidget):
         # positioning
         self.scale: float = 1
         self.translation: float = Vector(0, 0)
+
+        self.mouse = Mouse()
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -106,18 +116,51 @@ class Canvas(QWidget):
         # draw background
         painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
+    def mouse_position(self, clamp=True) -> Union[Vector, None]:
+        """Returns the mouse coordinates adjusted for translation and scale of the
+        canvas. If they are outside of the canvas then they are scaled down."""
+        if self.mouse.position is None:
+            return None
+
+        x, y = self.mouse.position
+
+        # possibly clamp the values and don't return None
+        if clamp:
+            # a clamp function
+            f = lambda v, min, max: min if v < min else max if v > max else v
+            x = f(x, 0, self.width())
+            y = f(y, 0, self.height())
+
+        # else check for None
+        elif not (0 <= x <= self.width()) or not (0 <= y <= self.height()):
+            return None
+
+        # return the mouse coordinates, accounting for canvas translation and scale
+        return (Vector(x, y) - self.translation) / self.scale
+
+    def mouseMoveEvent(self, event):
+        """Is called when the mouse is moved across the window."""
+        self.mouse.position = Vector(event.pos().x(), event.pos().x())
+
+    def mouseReleaseEvent(self, event):
+        """Is called when a mouse button is released."""
+        self.mouse.pressed = False
+
+    def mousePressEvent(self, event):
+        """Is called when a mouse button is released."""
+        self.mouse.pressed = True
+
     def wheelEvent(self, event):
         """Is called when the mouse wheel is moved; node rotation and zoom."""
         # positive/negative for scrolling away from/towards the user
         scroll_distance = radians(event.angleDelta().y() / self.scale_coefficient)
 
-        mouse_coordinates = Vector(event.pos().x(), event.pos().y())
-
-        prev_scale = self.scale
+        # adjust the scale
+        previous_scale = self.scale
         self.scale *= 2 ** (scroll_distance)
 
         # adjust translation so the x and y of the mouse stay in the same spot
-        self.translation -= mouse_coordinates * (self.scale - prev_scale)
+        self.translation -= self.mouse_position() * (self.scale - previous_scale)
 
 
 class GraphVisualizer(QMainWindow):
