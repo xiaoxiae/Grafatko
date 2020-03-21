@@ -12,17 +12,17 @@ class Node:
     """A class for working with of nodes in a graph."""
 
     label: str = None
-    adjacent: Dict[Node, float] = field(default_factory=dict)
+    adjacent: Dict[Node, Union[int, float]] = field(default_factory=dict)
 
-    def get_adjacent(self) -> Dict[Node, float]:
-        """Returns the adjacent of the node."""
+    def get_adjacent(self) -> Dict[Node, Union[int, float]]:
+        """Returns nodes adjacent to the node."""
         return self.adjacent
 
-    def get_label(self) -> str:
-        """Returns the label of the node."""
+    def get_label(self) -> Union[str, None]:
+        """Returns the label of the node (or None if has none)."""
         return self.label
 
-    def set_label(self, label: str):
+    def set_label(self, label: Union[str, None]):
         """Sets the label of the node to the specified value."""
         self.label = label
 
@@ -35,57 +35,6 @@ class Graph:
     weighted: bool = False
 
     nodes: List[Node] = field(default_factory=list)
-    components: List[Set[Node]] = field(default_factory=list)
-
-    # a variable used to track, whether we need to recalculate components
-    graph_state: int = 0
-
-    def recalculate_weakly_connected(self):
-        """Recalculate sets of nodes that are weakly connected.
-        TODO: make component calculation faster when only removing a Vertex."""
-        self.components = []
-
-        for node in self.nodes:
-            # the current set of nodes that we know are reachable from one another
-            working_set = set([node] + list(node.adjacent))
-
-            # the index of the set that we added the working set to
-            set_index = None
-
-            i = 0
-            while i < len(self.components):
-                existing_set = self.components[i]
-
-                # if an intersection exists, perform set union
-                if len(existing_set.intersection(working_set)) != 0:
-
-                    # if this is the first set to be merged, don't pop it from the list
-                    # if we have already merged a set, it means that the working set
-                    # joined two already existing sets
-                    if set_index is None:
-                        existing_set |= working_set
-                        set_index = i
-                        i += 1
-                    else:
-                        existing_set |= self.components.pop(set_index)
-                        set_index = i - 1
-                else:
-                    i += 1
-
-            # if we haven't performed any set merges, add the set to the continuity sets
-            if set_index is None:
-                self.components.append(working_set)
-
-    def weakly_connected(self, n1: Node, n2: Node) -> bool:
-        """Returns True if both of the nodes are weakly connected, else False."""
-        for component in self.components:
-            # if both are in one set, we know for certain that they share a set
-            # if only one is, we know that they can't share a set
-            # otherwise we don't know and have to check more sets
-            if (n1 in component) and (n2 in component):
-                return True
-            elif n1 in component or n2 in component:
-                return False
 
     def get_directed(self) -> bool:
         """Returns True if the graph is directed, else False."""
@@ -113,9 +62,8 @@ class Graph:
         """Sets, whether the graph is weighted or not."""
         self.weighted = value
 
-    def get_weight(self, n1: Node, n2: Node) -> Union[float, None]:
-        """Returns the weight of the specified vertex (and None if it doesn't exit or
-        the graph is not weighted)."""
+    def get_weight(self, n1: Node, n2: Node) -> Union[Union[int, float], None]:
+        """Returns the weight of the specified vertex (and None if they're not connected)."""
         return (
             None
             if not self.is_vertex(n1, n2)
@@ -130,8 +78,6 @@ class Graph:
         """Adds a new node to the graph."""
         self.nodes.append(node)
 
-        self.recalculate_weakly_connected()
-
     def remove_node(self, n: Node):
         """Removes the node from the graph."""
         self.nodes.remove(n)
@@ -141,9 +87,7 @@ class Graph:
             if n in node.adjacent:
                 del node.adjacent[n]
 
-        self.recalculate_weakly_connected()
-
-    def add_vertex(self, n1: Node, n2: Node, weight: float = None):
+    def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
         if the graph is not directed and the node wants to point to itself)."""
@@ -156,8 +100,6 @@ class Graph:
         # from n2 to n1
         if not self.directed:
             n2.adjacent[n1] = weight
-
-        self.recalculate_weakly_connected()
 
     def is_vertex(self, n1: Node, n2: Node) -> bool:
         """Returns True if a vertex exists between the two nodes and False otherwise."""
@@ -180,15 +122,6 @@ class Graph:
         # from n2 to n1
         if not self.directed and n1 in n2.adjacent:
             del n2.adjacent[n1]
-
-        self.recalculate_weakly_connected()
-
-    def complement(self):
-        """Makes the graph the complement of itself."""
-        for n1 in self.nodes:
-            for n2 in self.nodes:
-                if self.directed or id(n1) < id(n2):
-                    self.toggle_vertex(n1, n2)
 
     @classmethod
     def from_string(cls, string: str) -> Graph:
@@ -219,7 +152,8 @@ class Graph:
             for name in node_names:
                 if name not in node_dictionary:
                     # add it to graph with default values
-                    node_dictionary[name] = graph.add_node(Node(label=name))
+                    node_dictionary[name] = Node(label=name)
+                    graph.add_node(node_dictionary[name])
 
             # get the node objects from the names
             n1, n2 = node_dictionary[node_names[0]], node_dictionary[node_names[1]]
