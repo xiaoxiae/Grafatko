@@ -14,7 +14,8 @@ from PyQt5.QtWidgets import *
 # UTILITIES
 from utilities import *
 from ast import literal_eval
-
+from collections import defaultdict
+from math import sqrt, cos, sin, radians, pi
 from abc import *
 
 
@@ -224,13 +225,14 @@ class DrawableNode(Drawable, Node):
 
         self.forces: List[Vector] = []
 
-        # for drawing the outgoing vertices
-        self.adjacent_pen: Dict[Node, QPen] = field(default_factory=dict)
-
         # for drawing the node itself
         # TODO take this from a configuration file
-        self.pen: QPen = QPen(Qt.red, Qt.SolidLine)
-        self.brush: QBrush = QBrush(Qt.red, Qt.SolidPattern)
+        self.pen: QPen = QPen(Qt.black, 0.1)
+        self.brush: QBrush = QBrush(Qt.black, Qt.SolidPattern)
+
+        # for drawing the outgoing vertices
+        # TODO from a config...
+        self.adjacent_pens: Dict[Node, QPen] = defaultdict(lambda: QPen(Qt.black, 0.2))
 
     def get_adjacent(self) -> Dict[Node, Tuple[Union[int, float], Color]]:
         """Returns nodes adjacent to the node and the vertex colors that they have."""
@@ -262,13 +264,68 @@ class DrawableNode(Drawable, Node):
 
 
 class DrawableGraph(Drawable, Graph):
+    arrowhead_size: float = 0.8
+    arrow_separation: float = pi / 7
+
     def draw(self, painter: QPainter):
         """Draw the entire graph."""
-        # TODO draw all vertices
+        # first, draw all vertices
+        for node in self.get_nodes():
+            for adjacent in node.get_adjacent():
+                self.__draw_vertex(painter, node, adjacent)
 
-        # draw all nodes
+        # then, draw all nodes
         for node in self.get_nodes():
             node.draw(painter)
+
+    def __draw_vertex(self, painter: QPainter, n1: DrawableNode, n2: DrawableNode):
+        """Draw the specified vertex."""
+        painter.setPen(n1.adjacent_pens[n2])
+
+        # special case for a node pointing to itself
+        if n1 is n2:
+            pass  # TODO special case for a loop
+
+        else:
+            start, end = self.__get_vertex_position(n1, n2)
+
+            # draw the head of a directed arrow, which is an equilateral triangle
+            uv = (end - start).unit()
+
+            # the brush color is given by the current pen
+            painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
+            painter.drawPolygon(
+                QPointF(*end),
+                QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+                QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+            )
+
+        painter.drawLine(QPointF(*start), QPointF(*end))
+
+        if self.get_weighted():
+            pass  # TODO draw the weight
+
+    def __get_vertex_position(self, n1: Node, n2: Node) -> Tuple[Vector, Vector]:
+        """Return the position of the vertex on the screen."""
+        # positions of the nodes
+        n1_p = Vector(*n1.get_position())
+        n2_p = Vector(*n2.get_position())
+
+        # unit vector from n1 to n2
+        uv = (n2_p - n1_p).unit()
+
+        # start and end of the vertex to be drawn
+        start = n1_p + uv
+        end = n2_p - uv
+
+        if self.get_directed():
+            # if the graph is directed and a vertex exists that goes the other way, we
+            # have to move the start end end so the vertexes don't overlap
+            if self.graph.does_vertex_exist(n2, n1):
+                start = start.rotated(self.arrow_separation, n1_p)
+                end = end.rotated(-self.arrow_separation, n2_p)
+
+        return start, end
 
     def node_at_position(self, position: Vector) -> Union[None, DrawableNode]:
         """Returns a Node if it is at the given position, or None."""
