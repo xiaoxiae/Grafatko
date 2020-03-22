@@ -24,10 +24,17 @@ import webbrowser  # opening the browser
 
 @dataclass
 class Mouse:
-    """A small class for storing information about the mouse position on canvas."""
+    """A small class for storing information about the mouse."""
 
-    position: Vector = None  # its position on the app window
-    pressed: Vector = None  # whether it is currently being pressed
+    position: Vector = None  # it position on canvas
+
+    # offset of the mouse from the position of the currently dragged node
+    drag_offset: Vector = None
+
+    # if the appropriate button is pressed, the variables store where
+    # used in dragging nodes around
+    left_pressed: bool = None
+    right_pressed: bool = None
 
 
 class Canvas(QWidget):
@@ -95,6 +102,14 @@ class Canvas(QWidget):
 
             n1.evaluate_forces()
 
+        # drag the selected nodes, if the left button is being held and dragged
+        if self.selected_nodes is not None and self.mouse.left_pressed:
+            # TODO: if shift is pressed, move by components
+            # if QApplication.keyboardModifiers() == Qt.ShiftModifier:
+
+            for node in self.selected_nodes:
+                node.set_position(self.mouse.position - self.mouse.drag_offset)
+
         super().update(*args)
 
     def paintEvent(self, event):
@@ -129,83 +144,86 @@ class Canvas(QWidget):
         # draw background
         painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
-    def mouse_position(self, clamp=True) -> Union[Vector, None]:
-        """Returns the mouse coordinates adjusted for translation and scale of the
-        canvas. If they are outside of the canvas then they are scaled down."""
-        if self.mouse.position is None:
-            return None
-
-        x, y = self.mouse.position
-
-        # possibly clamp the values and don't return None
-        if clamp:
-            # a clamp function
-            f = lambda v, min, max: min if v < min else max if v > max else v
-            x = f(x, 0, self.width())
-            y = f(y, 0, self.height())
-
-        # else check for None
-        elif not (0 <= x <= self.width()) or not (0 <= y <= self.height()):
-            return None
-
-        # return the mouse coordinates, accounting for canvas translation and scale
-        return (Vector(x, y) - self.translation) / self.scale
-
     def mouseMoveEvent(self, event):
         """Is called when the mouse is moved across the window."""
-        self.mouse.position = Vector(event.pos().x(), event.pos().y())
+        self.update_mouse(event)
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
-        self.mouse.pressed = False
-        self.mouse.position = Vector(event.pos().x(), event.pos().y())
+        self.update_mouse(event)
+
+        if event.button() == Qt.LeftButton:
+            self.mouse.left_pressed = False
+
+        elif event.button() == Qt.RightButton:
+            self.mouse.right_pressed = False
 
     def mousePressEvent(self, event):
         """Is called when a mouse button is released."""
-        self.mouse.pressed = True
-        self.mouse.position = Vector(event.pos().x(), event.pos().y())
+        self.update_mouse(event)
 
-        shift_pressed = QApplication.keyboardModifiers() == Qt.ShiftModifier
+        pressed_node = self.graph.node_at_position(self.mouse.position)
 
         if event.button() == Qt.LeftButton:
-            # either select the node, or add it to selected when shift is pressed
-            if (node := self.graph.node_at_position(self.mouse_position())) != None:
-                if not shift_pressed or self.selected_nodes == None:
-                    self.selected_nodes = []
+            self.mouse.left_pressed = True
 
-                self.selected_nodes.append(node)
+            # if a node was pressed, select it
+            if pressed_node is not None:
+                self.select(pressed_node)
 
-            # else deselect them all
+                self.mouse.drag_offset = (
+                    self.mouse.position - pressed_node.get_position()
+                )
+
+            # else deselect 'em all
             else:
-                self.selected_nodes = None
+                self.deselect()
 
         elif event.button() == Qt.RightButton:
-            # if there isn't a node at the position, add it
-            if (node := self.graph.node_at_position(self.mouse_position())) is None:
-                node = DrawableNode(self.mouse_position())
+            self.mouse.right_pressed = True
 
-                self.graph.add_node(node)
+            # if there isn't a node at the position, create a new one
+            if pressed_node is None:
+                # re-used to make the code shorter
+                pressed_node = DrawableNode(self.mouse.position)
 
-            # if there is a node and if some nodes are selected, connect them to it
+                self.graph.add_node(pressed_node)
+                self.select(pressed_node)
+
+            # if some nodes are selected, connect them to the pressed node
             if self.selected_nodes is not None:
                 for selected_node in self.selected_nodes:
-                    self.graph.add_vertex(selected_node, node)
+                    self.graph.add_vertex(selected_node, pressed_node)
+
+    def update_mouse(self, event):
+        """Update the position of the mouse on the canvas."""
+        raw_position = Vector(event.pos().x(), event.pos().y())
+        self.mouse.position = (raw_position - self.translation) / self.scale
+
+    def select(self, node: DrawableNode):
+        """Select the given node."""
+        shift_pressed = QApplication.keyboardModifiers() == Qt.ShiftModifier
+
+        if not shift_pressed or self.selected_nodes == None:
+            self.selected_nodes = []
+
+        self.selected_nodes.append(node)
+
+    def deselect(self):
+        """Deselect all nodes."""
+        self.selected_nodes = None
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is moved; node rotation and zoom."""
         # positive/negative for scrolling away from/towards the user
         scroll_distance = radians(event.angleDelta().y() / self.scale_coefficient)
 
-        # NOTE: it is _super important_ that mouse_position() gets called before
-        # scale is adjusted, since the scale changes what mouse_position() returns...
-        position = self.mouse_position()
-
         # adjust the scale
         previous_scale = self.scale
         self.scale *= 2 ** scroll_distance
 
         # adjust translation so the x and y of the mouse stay in the same spot
-        self.translation -= position * (self.scale - previous_scale)
+        self.translation -= self.mouse.position * (self.scale - previous_scale)
 
     def get_graph(self):
         """Get the current graph."""
