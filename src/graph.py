@@ -19,6 +19,10 @@ from math import sqrt, cos, sin, radians, pi
 from abc import *
 
 
+# COLORS
+from colors import *
+
+
 @dataclass(eq=False)
 class Node:
     """A class for working with of nodes in a graph."""
@@ -212,8 +216,9 @@ class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
 
     @abstractmethod
-    def draw(self, painter: QPainter):
-        """A method that draws the object on the canvas."""
+    def draw(self, painter: QPainter, palette: QPalette):
+        """A method that draws the object on the canvas. Takes the painter to paint on
+        and the palette to generate relative colors from."""
         pass
 
 
@@ -226,16 +231,14 @@ class DrawableNode(Drawable, Node):
         self.forces: List[Vector] = []
 
         # for drawing the node itself
-        # TODO take this from a configuration file
-        self.pen: QPen = QPen(Qt.black, 0.1)
-        self.brush: QBrush = QBrush(Qt.black, Qt.SolidPattern)
+        self.pen = lambda p: QPen(DEFAULT(p), Qt.SolidLine)
+        self.brush = lambda p: QBrush(DEFAULT(p), Qt.SolidPattern)
 
         # for drawing the outgoing vertices
-        # TODO from a config...
-        self.adjacent_pens: Dict[Node, QPen] = defaultdict(lambda: QPen(Qt.black, 0.2))
+        self.adjacent_pens: Dict[Node, Callable[QPalette, QColor]] = {}
 
-    def get_adjacent(self) -> Dict[Node, Tuple[Union[int, float], Color]]:
-        """Returns nodes adjacent to the node and the vertex colors that they have."""
+    def get_adjacent(self) -> Dict[Node, Union[int, float]]:
+        """Returns nodes adjacent to the node."""
         return self.adjacent
 
     def get_position(self) -> Vector:
@@ -255,10 +258,10 @@ class DrawableNode(Drawable, Node):
         while len(self.forces) != 0:
             self.position += self.forces.pop()
 
-    def draw(self, painter: QPainter):
+    def draw(self, painter: QPainter, palette: QPalette):
         """Draw the node at its current position with radius 1."""
-        painter.setBrush(self.brush)
-        painter.setPen(self.pen)
+        painter.setBrush(self.brush(palette))
+        painter.setPen(self.pen(palette))
 
         painter.drawEllipse(QPointF(*self.position), 1, 1)
 
@@ -267,20 +270,32 @@ class DrawableGraph(Drawable, Graph):
     arrowhead_size: float = 0.5
     arrow_separation: float = pi / 7
 
-    def draw(self, painter: QPainter):
+    def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
         # first, draw all vertices
         for node in self.get_nodes():
             for adjacent in node.get_adjacent():
-                self.__draw_vertex(painter, node, adjacent)
+                self.__draw_vertex(painter, palette, node, adjacent)
 
         # then, draw all nodes
         for node in self.get_nodes():
-            node.draw(painter)
+            node.draw(painter, palette)
 
-    def __draw_vertex(self, painter: QPainter, n1: DrawableNode, n2: DrawableNode):
+    def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
+        """A wrapper around the normal Graph() add_vertex function that also adds the
+        pen function with which to draw the vertex."""
+        n1.adjacent_pens[n2] = lambda p: QPen(DEFAULT(p), Qt.SolidPattern)
+
+        if not self.directed:
+            n2.adjacent_pens[n1] = lambda p: QPen(DEFAULT(p), Qt.SolidPattern)
+
+        super().add_vertex(n1, n2, weight)
+
+    def __draw_vertex(
+        self, painter: QPainter, palette: QPalette, n1: DrawableNode, n2: DrawableNode
+    ):
         """Draw the specified vertex."""
-        painter.setPen(n1.adjacent_pens[n2])
+        painter.setPen(n1.adjacent_pens[n2](palette))
 
         # special case for a node pointing to itself
         if n1 is n2:

@@ -128,7 +128,7 @@ class Canvas(QWidget):
         painter.scale(self.scale, self.scale)
 
         # paint the graph
-        self.graph.draw(painter)
+        self.graph.draw(painter, self.palette())
 
     def paint_background(self, painter: QPainter):
         """Paint the background of the widget."""
