@@ -231,11 +231,11 @@ class DrawableNode(Drawable, Node):
         self.forces: List[Vector] = []
 
         # for drawing the node itself
-        self.pen = lambda p: QPen(DEFAULT(p), Qt.SolidLine)
-        self.brush = lambda p: QBrush(DEFAULT(p), Qt.SolidPattern)
+        self.pen = Pen(DEFAULT, Qt.SolidLine)
+        self.brush = Brush(DEFAULT, Qt.SolidPattern)
 
         # for drawing the outgoing vertices
-        self.adjacent_pens: Dict[Node, Callable[QPalette, QColor]] = {}
+        self.adjacent_pens: Dict[Node, Callable[[QPalette], QPen]] = {}
 
     def get_adjacent(self) -> Dict[Node, Union[int, float]]:
         """Returns nodes adjacent to the node."""
@@ -284,10 +284,10 @@ class DrawableGraph(Drawable, Graph):
     def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
         """A wrapper around the normal Graph() add_vertex function that also adds the
         pen function with which to draw the vertex."""
-        n1.adjacent_pens[n2] = lambda p: QPen(DEFAULT(p), Qt.SolidPattern)
+        n1.adjacent_pens[n2] = Pen(DEFAULT, Qt.SolidLine)
 
         if not self.directed:
-            n2.adjacent_pens[n1] = lambda p: QPen(DEFAULT(p), Qt.SolidPattern)
+            n2.adjacent_pens[n1] = Pen(DEFAULT, Qt.SolidLine)
 
         super().add_vertex(n1, n2, weight)
 
