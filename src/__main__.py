@@ -44,6 +44,13 @@ class Canvas(QWidget):
     # positioning
     scale_coefficient: float = 8  # by how much the scale changes on scroll
 
+    # whether the forces are enabled/disabled
+    forces: bool = True
+
+    # _ because self.repulsion gets self as the first argument
+    repulsion = lambda _, distance: (1 / distance) ** 2
+    attraction = lambda _, distance: -(distance - 8) / 10
+
     def __init__(self, parent=None):
         super().__init__(parent)
 
@@ -64,48 +71,42 @@ class Canvas(QWidget):
 
     def update(self, *args):
         """A function that gets periodically called to update the canvas."""
-        # the forces that act on the nodes
-        repulsion = lambda distance: (1 / distance) ** 2
-        attraction = lambda distance: -(distance - 8) / 10
+        # only move the nodes when forces are enabled
+        if self.forces:
+            for i, n1 in enumerate(self.graph.get_nodes()):
+                for n2 in self.graph.get_nodes()[i + 1 :]:
+                    # TODO: add weakly_connected check
 
-        for i, n1 in enumerate(self.graph.get_nodes()):
-            for n2 in self.graph.get_nodes()[i + 1 :]:
-                # TODO: add weakly_connected check
-                # if they are not at least weakly connected, no forces act on them
-                # if not self.graph.weakly_connected(n1, n2):
-                #    continue
+                    d = n1.get_position().distance(n2.get_position())
 
-                d = n1.get_position().distance(n2.get_position())
+                    # if they are on top of each other, nudge one of them slightly
+                    if d == 0:
+                        n1.add_force(Vector(random(), random()))
+                        continue
 
-                # if they are on top of each other, nudge one of them slightly
-                if d == 0:
-                    n1.add_force(Vector(random(), random()))
-                    continue
+                    # unit vector from n1 to n2
+                    uv = (n2.get_position() - n1.get_position()).unit()
 
-                # unit vector from n1 to n2
-                uv = (n2.get_position() - n1.get_position()).unit()
+                    # the size of the repel force between the two nodes
+                    fr = self.repulsion(d)
 
-                # the size of the repel force between the two nodes
-                fr = repulsion(d)
+                    # add a repel force to each of the nodes, in the opposite directions
+                    n1.add_force(-uv * fr)
+                    n2.add_force(uv * fr)
 
-                # add a repel force to each of the nodes, in the opposite directions
-                n1.add_force(-uv * fr)
-                n2.add_force(uv * fr)
+                    # if they are also connected, add the attraction force
+                    # the direction does not matter -- it would look weird for directed
+                    if self.graph.is_vertex(n1, n2) or self.graph.is_vertex(n2, n1):
+                        fa = self.attraction(d)
 
-                # if they are also connected, add the attraction force
-                # the direction does not matter -- it would look weird for directed
-                if self.graph.is_vertex(n1, n2) or self.graph.is_vertex(n2, n1):
-                    fa = attraction(d)
+                        n1.add_force(-uv * fa)
+                        n2.add_force(uv * fa)
 
-                    n1.add_force(-uv * fa)
-                    n2.add_force(uv * fa)
-
-            n1.evaluate_forces()
+                n1.evaluate_forces()
 
         # drag the selected nodes, if the left button is being held and dragged
         if self.selected_nodes is not None and self.mouse.left_pressed:
             # TODO: if shift is pressed, move by components
-            # if QApplication.keyboardModifiers() == Qt.ShiftModifier:
 
             for node in self.selected_nodes:
                 node.set_position(self.mouse.position - self.mouse.drag_offset)
@@ -229,11 +230,15 @@ class Canvas(QWidget):
         """Get the current graph."""
         return self.graph
 
+    def set_forces(self, value: bool):
+        """Enable/disable the forces that act on the nodes."""
+        self.forces = value
+
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
         # TODO: command line argument parsing (--dark and stuff)
-        # TODO: hide toolbar with f-something
+        # TODO: hide toolbar with f-10 or something
 
         super().__init__()
 
@@ -316,8 +321,16 @@ class GraphVisualizer(QMainWindow):
 
         ### Visual options
         layout.addWidget(QLabel(self, text="Visual"), 0, 1)
+
         layout.addWidget(QCheckBox("labels", self), 1, 1)
-        layout.addWidget(QCheckBox("gravity", self), 2, 1)
+
+        layout.addWidget(
+            QCheckBox(
+                "gravity", self, toggled=lambda value: self.canvas.set_forces(value),
+            ),
+            2,
+            1,
+        )
 
         ### Graph actions
         layout.addWidget(QLabel(self, text="Actions"), 0, 2)
