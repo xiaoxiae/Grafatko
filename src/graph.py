@@ -255,6 +255,18 @@ class Graph:
 
         return string
 
+    def to_asymptote(self) -> str:
+        # TODO possible export option
+        pass
+
+    def to_tikz(self) -> str:
+        # TODO possible export option
+        pass
+
+    def to_svg(self) -> str:
+        # TODO possible export option
+        pass
+
 
 class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
