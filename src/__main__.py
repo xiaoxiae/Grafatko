@@ -23,26 +23,80 @@ import webbrowser  # opening the browser
 
 
 @dataclass
+class CanvasTransformation:
+    """A class for working with the current transformation of the canvas."""
+
+    # initial scale and transformation
+    scale: float = 10
+    translation: float = Vector(0, 0)
+
+    def transform_painter(self, painter: QPainter):
+        """Translate the painter according to the current canvas state."""
+        painter.translate(*self.translation)
+        painter.scale(self.scale, self.scale)
+
+    def apply(self, point: Vector):
+        """Apply the current canvas transformation on the point."""
+        return (point - self.translation) / self.scale
+
+    def zoom(self, position: Vector, delta: float):
+        """Zoom in/out."""
+        # adjust the scale
+        previous_scale = self.scale
+        self.scale *= 2 ** delta  # a little ad-hoc way to smoothly scale
+
+        # adjust translation so the x and y of the mouse stay in the same spot
+        self.translation -= position * (self.scale - previous_scale)
+
+
+@dataclass
 class Mouse:
     """A small class for storing information about the mouse."""
 
-    position: Vector = None  # it position on canvas
+    transformation: CanvasTransformation
 
-    # offset of the mouse from the position of the currently dragged node
-    drag_offset: Vector = None
+    position: Union[Vector, None] = None  # it position on canvas
 
-    # if the appropriate button is pressed, the variables store where
-    # used in dragging nodes around
+    # for storing where the last left click occurred
     left_pressed: bool = None
     right_pressed: bool = None
+
+    def move(self, event):
+        """Update the mouse coordinates."""
+        self.position = Vector(event.pos().x(), event.pos().y())
+
+    def get_position(self):
+        """Get the current mouse position."""
+        return self.transformation.apply(self.position)
+
+    def left(self):
+        """Return True if the left mouse button is pressed."""
+        return self.left_pressed is not None
+
+    def right(self):
+        """Return True if the right mouse button is pressed."""
+        return self.right_pressed is not None
+
+    def press(self, event):
+        """Update mouse status when mouse is pressed."""
+        self.move(event)
+        if event.button() == Qt.LeftButton:
+            self.left_pressed = self.get_position()
+        elif event.button() == Qt.RightButton:
+            self.right_pressed = self.get_position()
+
+    def release(self, event):
+        """Update mouse status when mouse is released."""
+        self.move(event)
+        if event.button() == Qt.LeftButton:
+            self.left_pressed = None
+        elif event.button() == Qt.RightButton:
+            self.right_pressed = None
 
 
 class Canvas(QWidget):
     # WIDGET OPTIONS
     lighten_coefficient = 10  # how much lighter/darker the canvas is (to background)
-
-    # positioning
-    scale_coefficient: float = 8  # by how much the scale changes on scroll
 
     # whether the forces are enabled/disabled
     forces: bool = True
@@ -54,17 +108,16 @@ class Canvas(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        # MOUSE
-        self.setMouseTracking(True)
-
-        self.scale: float = 10
-        self.translation: float = Vector(0, 0)
-
-        self.mouse = Mouse()
-
         # GRAPH
         self.graph = DrawableGraph()
-        self.selected_nodes = None
+        self.selected_nodes = []
+
+        # CANVAS STUFF
+        self.transformation = CanvasTransformation()
+
+        # MOUSE
+        self.mouse = Mouse(self.transformation)
+        self.setMouseTracking(True)
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -75,7 +128,9 @@ class Canvas(QWidget):
         if self.forces:
             for i, n1 in enumerate(self.graph.get_nodes()):
                 for n2 in self.graph.get_nodes()[i + 1 :]:
-                    # TODO: add weakly_connected check
+                    # only apply force, if n1 and n2 are weakly connected
+                    if not self.graph.weakly_connected(n1, n2):
+                        continue
 
                     d = n1.get_position().distance(n2.get_position())
 
@@ -104,13 +159,6 @@ class Canvas(QWidget):
 
                 n1.evaluate_forces()
 
-        # drag the selected nodes, if the left button is being held and dragged
-        if self.selected_nodes is not None and self.mouse.left_pressed:
-            # TODO: if shift is pressed, move by components
-
-            for node in self.selected_nodes:
-                node.set_position(self.mouse.position - self.mouse.drag_offset)
-
         super().update(*args)
 
     def paintEvent(self, event):
@@ -118,15 +166,14 @@ class Canvas(QWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
 
-        # clipping
+        # clip
         painter.setClipRect(0, 0, self.width(), self.height())
 
         # paint the background
         self.paint_background(painter)
 
-        # translate the world
-        painter.translate(*self.translation)
-        painter.scale(self.scale, self.scale)
+        # transform the coordinates according to the current state of the canvas
+        self.transformation.transform_painter(painter)
 
         # paint the graph
         self.graph.draw(painter, self.palette())
@@ -136,95 +183,98 @@ class Canvas(QWidget):
         # color shenanigans
         default_background = self.palette().color(QPalette.Background)
 
-        background = default_background.lighter(100 + self.lighten_coefficient)
-        border = default_background.darker(100 + self.lighten_coefficient)
+        background_color = default_background.lighter(100 + self.lighten_coefficient)
+        border_color = default_background.darker(100 + self.lighten_coefficient)
 
-        painter.setBrush(QBrush(background, Qt.SolidPattern))
-        painter.setPen(QPen(border, Qt.SolidLine))
+        painter.setBrush(QBrush(background_color, Qt.SolidPattern))
+        painter.setPen(QPen(border_color, Qt.SolidLine))
 
         # draw background
         painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
     def mouseMoveEvent(self, event):
-        """Is called when the mouse is moved across the window."""
-        self.update_mouse(event)
+        """Is called when the mouse is moved across the canvas."""
+        self.mouse.move(event)
+
+        # update dragged nodes
+        for node in self.graph.get_nodes():
+            if node.is_dragged():
+                node.set_position(self.mouse.get_position())
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
-        self.update_mouse(event)
+        self.mouse.release(event)
 
-        if event.button() == Qt.LeftButton:
-            self.mouse.left_pressed = False
+        # stop dragging the nodes
+        for node in self.selected_nodes:
+            node.stop_drag()
 
-        elif event.button() == Qt.RightButton:
-            self.mouse.right_pressed = False
+    def wheelEvent(self, event):
+        """Is called when the mouse wheel is turned."""
+        delta = radians(event.angleDelta().y() / 8)
+
+        if self.shift_pressed():
+            if len(self.selected_nodes) != 0:
+                self.rotate_about_selected(delta)
+        else:
+            self.transformation.zoom(self.mouse.get_position(), delta)
+
+    def rotate_about_selected(self, angle: float):
+        """Rotate about the average of selected nodes by the angle."""
+        nodes = self.selected_nodes
+
+        pivot = sum([n.get_position() for n in nodes], Vector(0, 0)) / len(nodes)
+
+        # rotate the nodes that are weakly connected to any of the selected nodes
+        for node in self.graph.get_nodes():
+            for selected_node in nodes:
+                if self.graph.weakly_connected(node, selected_node):
+                    node.set_position(node.get_position().rotated(angle, pivot))
 
     def mousePressEvent(self, event):
-        """Is called when a mouse button is released."""
-        self.update_mouse(event)
+        """Called when a left click is registered."""
+        self.mouse.press(event)
 
-        pressed_node = self.graph.node_at_position(self.mouse.position)
+        pressed = self.graph.node_at_position(self.mouse.get_position())
 
-        if event.button() == Qt.LeftButton:
-            self.mouse.left_pressed = True
+        if self.mouse.left():
+            # if we hit a node, start dragging the nodes
+            if pressed is not None:
+                self.select(pressed)
 
-            # if a node was pressed, select it
-            if pressed_node is not None:
-                self.select(pressed_node)
-
-                self.mouse.drag_offset = (
-                    self.mouse.position - pressed_node.get_position()
-                )
-
-            # else deselect 'em all
+                # start dragging the nodes
+                for node in self.selected_nodes:
+                    node.start_drag(self.mouse.get_position())
             else:
                 self.deselect()
 
-        elif event.button() == Qt.RightButton:
-            self.mouse.right_pressed = True
-
+        elif self.mouse.right():
             # if there isn't a node at the position, create a new one
-            if pressed_node is None:
-                # re-used to make the code shorter
-                pressed_node = DrawableNode(self.mouse.position)
+            if pressed is None:
+                pressed = DrawableNode(self.mouse.get_position())
 
-                self.graph.add_node(pressed_node)
-                self.select(pressed_node)
+                self.graph.add_node(pressed)
+                self.select(pressed)
 
             # if some nodes are selected, connect them to the pressed node
-            if self.selected_nodes is not None:
-                for selected_node in self.selected_nodes:
-                    self.graph.add_vertex(selected_node, pressed_node)
-
-    def update_mouse(self, event):
-        """Update the position of the mouse on the canvas."""
-        raw_position = Vector(event.pos().x(), event.pos().y())
-        self.mouse.position = (raw_position - self.translation) / self.scale
+            for selected_node in self.selected_nodes:
+                self.graph.toggle_vertex(selected_node, pressed)
 
     def select(self, node: DrawableNode):
         """Select the given node."""
-        shift_pressed = QApplication.keyboardModifiers() == Qt.ShiftModifier
-
-        if not shift_pressed or self.selected_nodes == None:
-            self.selected_nodes = []
+        # only select one when shift is not pressed
+        if not self.shift_pressed():
+            self.deselect()
 
         self.selected_nodes.append(node)
 
     def deselect(self):
         """Deselect all nodes."""
-        self.selected_nodes = None
+        self.selected_nodes = []
 
-    def wheelEvent(self, event):
-        """Is called when the mouse wheel is moved; node rotation and zoom."""
-        # positive/negative for scrolling away from/towards the user
-        scroll_distance = radians(event.angleDelta().y() / self.scale_coefficient)
-
-        # adjust the scale
-        previous_scale = self.scale
-        self.scale *= 2 ** scroll_distance
-
-        # adjust translation so the x and y of the mouse stay in the same spot
-        self.translation -= self.mouse.position * (self.scale - previous_scale)
+    def shift_pressed(self):
+        """Return True if shift is currently being pressed."""
+        return QApplication.keyboardModifiers() == Qt.ShiftModifier
 
     def get_graph(self):
         """Get the current graph."""
