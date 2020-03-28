@@ -293,6 +293,10 @@ class DrawableNode(Drawable, Node):
         # for drawing the outgoing vertices
         self.adjacent_pens: Dict[Node, Callable[[QPalette], QPen]] = {}
 
+        # for information about being dragged
+        # at that point, no forces act on it
+        self.drag: Union[Vector, None] = None
+
     def get_adjacent(self) -> Dict[Node, Union[int, float]]:
         """Returns nodes adjacent to the node."""
         return self.adjacent
@@ -302,17 +306,31 @@ class DrawableNode(Drawable, Node):
         return self.position
 
     def set_position(self, position: Vector):
-        """Return the position of the node."""
-        self.position = position
+        """Return the position of the node (accounted for drag)."""
+        self.position = position - (self.drag or Vector(0, 0))
+
+    def start_drag(self, position: Vector):
+        self.drag = position - self.get_position()
+
+    def stop_drag(self) -> Vector:
+        self.forces = []
+        self.drag = None
+
+    def is_dragged(self) -> bool:
+        return self.drag is not None
 
     def add_force(self, force: Vector):
         """Adds a force that is acting upon the node to the force list."""
         self.forces.append(force)
 
     def evaluate_forces(self):
-        """Evaluates all of the forces acting upon the node and moves it accordingly."""
+        """Evaluates all of the forces acting upon the node and moves it accordingly.
+        Node that they are only applied if the note is not being dragged."""
         while len(self.forces) != 0:
-            self.position += self.forces.pop()
+            force = self.forces.pop()
+
+            if not self.is_dragged():
+                self.position += force
 
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the node at its current position with radius 1."""
