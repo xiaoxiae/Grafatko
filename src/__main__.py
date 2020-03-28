@@ -27,7 +27,7 @@ class CanvasTransformation:
     """A class for working with the current transformation of the canvas."""
 
     # initial scale and transformation
-    scale: float = 10
+    scale: float = 20
     translation: float = Vector(0, 0)
 
     def transform_painter(self, painter: QPainter):
@@ -199,6 +199,7 @@ class Canvas(QWidget):
         # update dragged nodes
         for node in self.graph.get_nodes():
             if node.is_dragged():
+                # TODO also drag weakly connected nodes on shift press
                 node.set_position(self.mouse.get_position())
 
     def mouseReleaseEvent(self, event):
