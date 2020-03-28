@@ -52,6 +52,46 @@ class Graph:
 
     nodes: List[Node] = field(default_factory=list)
 
+    # a component array that gets recalculated on each destructive graph operation
+    # takes O(n^2) to rebuild, but O(1) to check components, so it's better for us
+    # TODO: make rebuilding faster (I was too lazy before)
+    components: Dict[Node, int] = field(default_factory=defaultdict)
+
+    def recalculate_components(function):
+        """A decorator for rebuilding the components of the graph."""
+
+        def wrapper(self, *args, **kwargs):
+            # first add/remove vertex/node/...
+            function(self, *args, **kwargs)
+
+            self.components = []
+
+            for node in self.nodes:
+                # the current set of nodes that we know are reachable from one another
+                component = set([node] + list(node.get_adjacent()))
+
+                i = 0
+                while i < len(self.components):
+                    if len(self.components[i].intersection(component)) != 0:
+                        component |= self.components.pop(i)
+                    else:
+                        i += 1
+
+                self.components.append(component)
+
+        return wrapper
+
+    def weakly_connected(self, n1: Node, n2: Node):
+        """Return True if the nodes are weakly connected."""
+        for component in self.components:
+            a = n1 in component
+            b = n2 in component
+
+            if a and b:
+                return True
+            elif a or b:
+                return False
+
     def get_directed(self) -> bool:
         """Returns True if the graph is directed, else False."""
         return self.directed
@@ -90,10 +130,12 @@ class Graph:
         """Returns a list of nodes of the graph."""
         return self.nodes
 
+    @recalculate_components
     def add_node(self, node: Node):
         """Adds a new node to the graph."""
         self.nodes.append(node)
 
+    @recalculate_components
     def remove_node(self, n: Node):
         """Removes the node from the graph."""
         self.nodes.remove(n)
@@ -103,6 +145,7 @@ class Graph:
             if n in node.adjacent:
                 del node.adjacent[n]
 
+    @recalculate_components
     def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
@@ -128,6 +171,7 @@ class Graph:
         else:
             self.add_vertex(n1, n2)
 
+    @recalculate_components
     def remove_vertex(self, n1: Node, n2: Node):
         """Removes a vertex from node n1 to node n2 (and vice versa, if it's not 
         directed). Only does so if the given vertex exists."""
