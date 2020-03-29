@@ -184,7 +184,7 @@ class Graph:
             del n2.adjacent[n1]
 
     @classmethod
-    def from_string(cls, string: str) -> Graph:
+    def from_string(cls, string: str, node_cls: Node = Node) -> type(cls):
         """Generates the graph from a given string."""
         graph = None
         node_dictionary = {}
@@ -198,7 +198,7 @@ class Graph:
                 directed = parts[1] in ("->", "<-")
                 weighted = len(parts) == 3 + directed
 
-                graph = Graph(directed=directed, weighted=weighted)
+                graph = cls(directed=directed, weighted=weighted)
 
             # the formats are either 'A B' or 'A <something> B'
             node_names = (parts[0], parts[1 + directed])
@@ -212,7 +212,7 @@ class Graph:
             for name in node_names:
                 if name not in node_dictionary:
                     # add it to graph with default values
-                    node_dictionary[name] = Node(label=name)
+                    node_dictionary[name] = node_cls(label=name)
                     graph.add_node(node_dictionary[name])
 
             # get the node objects from the names
@@ -231,24 +231,30 @@ class Graph:
         """Exports the graph, returning the string."""
         string = ""
 
+        # TODO: make the counter check, if some nodes don't already have the same label
+        counter = 0  # for naming nodes that don't have a label
+
         # for each pair n1, n2 where n1_i < n2_i
         for i, n1 in enumerate(self.nodes):
             for n2 in self.nodes[i + 1 :]:
+                n1_label = n1.get_label() or str(counter := counter + 1)
+                n2_label = n2.get_label() or str(counter := counter + 1)
+
                 # TODO: simplify this code
                 if self.is_vertex(n1, n2):
                     string += (
-                        n1.get_label()
+                        n1_label
                         + (" -> " if self.directed else " ")
-                        + n2.get_label()
+                        + n2_label
                         + (str(self.get_weight(n1, n2)) if self.weighted else "")
                         + "\n"
                     )
 
                 if self.is_vertex(n2, n1) and self.directed:
                     string += (
-                        n1.get_label()
+                        n1_label
                         + (" <- " if self.directed else " ")
-                        + n2.get_label()
+                        + n2_label
                         + (str(self.get_weight(n2, n1)) if self.weighted else "")
                         + "\n"
                     )
@@ -278,10 +284,10 @@ class Drawable(ABC):
 
 
 class DrawableNode(Drawable, Node):
-    def __init__(self, position, *arg):
+    def __init__(self, position=Vector(0, 0), *args, **kwargs):
         self.position: Vector = position
 
-        super().__init__(*arg)
+        super().__init__(*args, **kwargs)
 
         self.forces: List[Vector] = []
 

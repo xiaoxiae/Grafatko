@@ -1,3 +1,4 @@
+import os
 import sys
 
 # CLEAN CODE :)
@@ -344,10 +345,47 @@ class Canvas(QWidget):
         """Enable/disable the forces that act on the nodes."""
         self.forces = value
 
+    def import_graph(self):
+        """Prompt a graph (from file) import."""
+        path = QFileDialog.getOpenFileName()[0]
+
+        if path == "":
+            return
+
+        # TODO: add parsing exceptions
+        self.graph = (
+            DrawableGraph.from_string(open(path, "r").read(), DrawableNode)
+            or self.graph
+        )
+
+        # TODO: center on the newly imported node
+
+    def export_graph(self):
+        """Prompt a graph (from file) export."""
+        path = QFileDialog.getSaveFileName()[0]
+
+        if path == "":
+            return
+
+        try:
+            with open(path, "w") as f:
+                f.write(self.graph.to_string())
+        except Exception as e:
+            # TODO: more specific exceptions raised when parsing
+            QMessageBox.critical(
+                self,
+                "Error!",
+                "An error occurred when exporting the graph. Make sure that you "
+                "have permission to write to the specified file and try again!",
+            )
+
+            # clean-up
+            os.remove(path)
+
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
-        # TODO: hide toolbar with f-10 or something
+        # TODO: hide toolbar and dock with f-10 or something
 
         super().__init__()
 
@@ -367,8 +405,15 @@ class GraphVisualizer(QMainWindow):
         self.menubar = self.menuBar()
 
         self.file_menu = self.menubar.addMenu("&File")
-        self.file_menu.addAction(QAction("&Import", self))
-        self.file_menu.addAction(QAction("&Export", self))
+
+        self.file_menu.addAction(
+            QAction("&Import", self, triggered=lambda: self.canvas.import_graph())
+        )
+
+        self.file_menu.addAction(
+            QAction("&Export", self, triggered=lambda: self.canvas.export_graph())
+        )
+
         self.file_menu.addSeparator()
         self.file_menu.addAction(QAction("&Quit", self, triggered=exit))
 
