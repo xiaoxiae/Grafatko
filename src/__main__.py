@@ -26,6 +26,8 @@ import webbrowser  # opening the browser
 class CanvasTransformation:
     """A class for working with the current transformation of the canvas."""
 
+    canvas: QWidget  # get the widget so we can calculate the current width and height
+
     # initial scale and transformation
     scale: float = 20
     translation: float = Vector(0, 0)
@@ -41,7 +43,9 @@ class CanvasTransformation:
 
     def center(self, point: Vector):
         """Center the transformation on the given point."""
-        # TODO
+        middle = self.apply(Vector(self.canvas.width(), self.canvas.height()) / 2)
+
+        self.translation += middle - point
 
     def zoom(self, position: Vector, delta: float):
         """Zoom in/out."""
@@ -56,6 +60,8 @@ class CanvasTransformation:
 @dataclass
 class Keyboard:
     """A small class for storing information about the keyboard."""
+
+    # TODO: add custom config, essentially acting like space is some other key
 
     keys: Dict[int, bool] = field(
         default_factory=lambda: {Qt.Key_Space: False, Qt.Key_Delete: False}
@@ -147,7 +153,7 @@ class Canvas(QWidget):
         self.graph = DrawableGraph()
 
         # CANVAS STUFF
-        self.transformation = CanvasTransformation()
+        self.transformation = CanvasTransformation(self)
 
         # MOUSE
         self.mouse = Mouse(self.transformation)
@@ -195,6 +201,11 @@ class Canvas(QWidget):
 
                 n1.evaluate_forces()
 
+        # if space is being pressed, center around the currently selected nodes
+        if self.keyboard.space() and len(ns := self.graph.get_selected()) != 0:
+            point = sum([n.get_position() for n in ns], Vector(0, 0)) / len(ns)
+            self.transformation.center(point)
+
         super().update(*args)
 
     def paintEvent(self, event):
@@ -236,12 +247,8 @@ class Canvas(QWidget):
         """Called when a key press is registered."""
         self.keyboard.pressed(event)
 
-        # if space is pressed, center around the currently selected nodes (if there are any)
-        if self.keyboard.space():
-            if len(nodes := self.graph.get_selected()) != 0:
-                self.transformation.center([n.get_position() for n in nodes])
-
-        elif self.keyboard.delete():
+        # delete selected nodes on del press
+        if self.keyboard.delete():
             for node in self.graph.get_selected():
                 self.graph.remove_node(node)
 
@@ -249,11 +256,12 @@ class Canvas(QWidget):
         """Is called when the mouse is moved across the canvas."""
         self.mouse.moved(event)
 
-        # update dragged nodes
-        for node in self.graph.get_nodes():
-            if node.is_dragged():
-                # TODO also drag weakly connected nodes on shift press
-                node.set_position(self.mouse.get_position())
+        # update dragged nodes (unless we are holding down space, centering on them)
+        if not self.keyboard.space():
+            for node in self.graph.get_nodes():
+                if node.is_dragged():
+                    # TODO also drag weakly connected nodes on shift press
+                    node.set_position(self.mouse.get_position())
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
