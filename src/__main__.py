@@ -39,6 +39,10 @@ class CanvasTransformation:
         """Apply the current canvas transformation on the point."""
         return (point - self.translation) / self.scale
 
+    def center(self, point: Vector):
+        """Center the transformation on the given point."""
+        # TODO
+
     def zoom(self, position: Vector, delta: float):
         """Zoom in/out."""
         # adjust the scale
@@ -50,6 +54,37 @@ class CanvasTransformation:
 
 
 @dataclass
+class Keyboard:
+    """A small class for storing information about the keyboard."""
+
+    keys: Dict[int, bool] = field(
+        default_factory=lambda: {Qt.Key_Space: False, Qt.Key_Delete: False}
+    )
+
+    def __set_key(self, key: int, value: bool):
+        """Set (attempt to) key in the dictionary to a given value."""
+        if key in self.keys:
+            self.keys[key] = value
+
+    def pressed(self, event):
+        """Update keyboard status when a key is pressed."""
+        self.__set_key(event.key(), True)
+
+    def released(self, event):
+        """Update keyboard status when a key is released."""
+        self.__set_key(event.key(), False)
+
+    def space(self):
+        return self.keys[Qt.Key_Space]
+
+    def delete(self):
+        return self.keys[Qt.Key_Delete]
+
+    def shift(self):
+        return QApplication.keyboardModifiers() == Qt.ShiftModifier
+
+
+@dataclass
 class Mouse:
     """A small class for storing information about the mouse."""
 
@@ -58,10 +93,11 @@ class Mouse:
     position: Union[Vector, None] = None  # it position on canvas
 
     # for storing where the last left click occurred
-    left_pressed: bool = None
-    right_pressed: bool = None
+    buttons: Dict[int, Union[Vector, None]] = field(
+        default_factory=lambda: {Qt.LeftButton: None, Qt.RightButton: None}
+    )
 
-    def move(self, event):
+    def moved(self, event):
         """Update the mouse coordinates."""
         self.position = Vector(event.pos().x(), event.pos().y())
 
@@ -69,29 +105,28 @@ class Mouse:
         """Get the current mouse position."""
         return self.transformation.apply(self.position)
 
+    def __set_button(self, button: int, value: bool):
+        """Set (attempt to) button in the dictionary to a given value."""
+        if button in self.buttons:
+            self.buttons[button] = value
+
+    def pressed(self, event):
+        """Update mouse status when a key is pressed."""
+        self.moved(event)
+        self.__set_button(event.button(), self.get_position())
+
+    def released(self, event):
+        """Update mouse status when a key is pressed."""
+        self.moved(event)
+        self.__set_button(event.button(), None)
+
     def left(self):
         """Return True if the left mouse button is pressed."""
-        return self.left_pressed is not None
+        return self.buttons[Qt.LeftButton] is not None
 
     def right(self):
         """Return True if the right mouse button is pressed."""
-        return self.right_pressed is not None
-
-    def press(self, event):
-        """Update mouse status when mouse is pressed."""
-        self.move(event)
-        if event.button() == Qt.LeftButton:
-            self.left_pressed = self.get_position()
-        elif event.button() == Qt.RightButton:
-            self.right_pressed = self.get_position()
-
-    def release(self, event):
-        """Update mouse status when mouse is released."""
-        self.move(event)
-        if event.button() == Qt.LeftButton:
-            self.left_pressed = None
-        elif event.button() == Qt.RightButton:
-            self.right_pressed = None
+        return self.buttons[Qt.RightButton] is not None
 
 
 class Canvas(QWidget):
@@ -110,7 +145,6 @@ class Canvas(QWidget):
 
         # GRAPH
         self.graph = DrawableGraph()
-        self.selected_nodes = []
 
         # CANVAS STUFF
         self.transformation = CanvasTransformation()
@@ -118,6 +152,8 @@ class Canvas(QWidget):
         # MOUSE
         self.mouse = Mouse(self.transformation)
         self.setMouseTracking(True)
+
+        self.keyboard = Keyboard()
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -192,9 +228,26 @@ class Canvas(QWidget):
         # draw background
         painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
+    def keyReleaseEvent(self, event):
+        """Called when a key press is registered."""
+        self.keyboard.released(event)
+
+    def keyPressEvent(self, event):
+        """Called when a key press is registered."""
+        self.keyboard.pressed(event)
+
+        # if space is pressed, center around the currently selected nodes (if there are any)
+        if self.keyboard.space():
+            if len(nodes := self.graph.get_selected()) != 0:
+                self.transformation.center([n.get_position() for n in nodes])
+
+        elif self.keyboard.delete():
+            for node in self.graph.get_selected():
+                self.graph.remove_node(node)
+
     def mouseMoveEvent(self, event):
         """Is called when the mouse is moved across the canvas."""
-        self.mouse.move(event)
+        self.mouse.moved(event)
 
         # update dragged nodes
         for node in self.graph.get_nodes():
@@ -204,37 +257,38 @@ class Canvas(QWidget):
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
-        self.mouse.release(event)
+        self.mouse.released(event)
 
         # stop dragging the nodes
-        for node in self.selected_nodes:
+        for node in self.graph.get_selected():
             node.stop_drag()
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is turned."""
         delta = radians(event.angleDelta().y() / 8)
 
-        if self.shift_pressed():
-            if len(self.selected_nodes) != 0:
+        if self.keyboard.shift():
+            if len(self.graph.get_selected()) != 0:
                 self.rotate_about_selected(delta)
         else:
             self.transformation.zoom(self.mouse.get_position(), delta)
 
     def rotate_about_selected(self, angle: float):
         """Rotate about the average of selected nodes by the angle."""
-        nodes = self.selected_nodes
+        nodes = self.graph.get_selected()
 
         pivot = sum([n.get_position() for n in nodes], Vector(0, 0)) / len(nodes)
 
         # rotate the nodes that are weakly connected to any of the selected nodes
         for node in self.graph.get_nodes():
-            for selected_node in nodes:
-                if self.graph.weakly_connected(node, selected_node):
+            for selected in nodes:
+                if self.graph.weakly_connected(node, selected):
                     node.set_position(node.get_position().rotated(angle, pivot))
 
     def mousePressEvent(self, event):
         """Called when a left click is registered."""
-        self.mouse.press(event)
+        self.setFocus()
+        self.mouse.pressed(event)
 
         pressed = self.graph.node_at_position(self.mouse.get_position())
 
@@ -244,7 +298,7 @@ class Canvas(QWidget):
                 self.select(pressed)
 
                 # start dragging the nodes
-                for node in self.selected_nodes:
+                for node in self.graph.get_selected():
                     node.start_drag(self.mouse.get_position())
             else:
                 self.deselect()
@@ -255,27 +309,24 @@ class Canvas(QWidget):
                 pressed = DrawableNode(self.mouse.get_position())
 
                 self.graph.add_node(pressed)
-                self.select(pressed)
 
             # if some nodes are selected, connect them to the pressed node
-            for selected_node in self.selected_nodes:
-                self.graph.toggle_vertex(selected_node, pressed)
+            for selected in self.graph.get_selected():
+                self.graph.toggle_vertex(selected, pressed)
+
+            self.select(pressed)
 
     def select(self, node: DrawableNode):
         """Select the given node."""
         # only select one when shift is not pressed
-        if not self.shift_pressed():
+        if not self.keyboard.shift():
             self.deselect()
-
-        self.selected_nodes.append(node)
+        node.select()
 
     def deselect(self):
         """Deselect all nodes."""
-        self.selected_nodes = []
-
-    def shift_pressed(self):
-        """Return True if shift is currently being pressed."""
-        return QApplication.keyboardModifiers() == Qt.ShiftModifier
+        for node in self.graph.get_selected():
+            node.deselect()
 
     def get_graph(self):
         """Get the current graph."""
@@ -288,16 +339,21 @@ class Canvas(QWidget):
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
-        # TODO: command line argument parsing (--dark and stuff)
         # TODO: hide toolbar with f-10 or something
 
         super().__init__()
+
+        # TODO: command line argument parsing (--dark and stuff)
+        styles.light(QApplication.instance())
 
         # Widgets
         ## Canvas (main widget)
         self.canvas = Canvas(parent=self)
         self.canvas.setMinimumSize(100, 200)  # reasonable minimum size
         self.setCentralWidget(self.canvas)
+
+        # TODO: add to tab order (and highlight when it is)
+        self.canvas.setFocus()
 
         ## Top menu bar
         self.menubar = self.menuBar()
@@ -322,8 +378,22 @@ class GraphVisualizer(QMainWindow):
         )
 
         self.help_menu = self.menubar.addMenu("&Help")
-        self.help_menu.addAction(QAction("&Manual", self))
-        self.help_menu.addAction(QAction("&About", self))
+        self.help_menu.addAction(
+            QAction(
+                "&Manual",
+                self,
+                triggered=lambda: QMessageBox.information(self, "Manual", "..."),
+            )
+        )
+
+        self.help_menu.addAction(
+            QAction(
+                "&About",
+                self,
+                triggered=lambda: QMessageBox.information(self, "About", "..."),
+            )
+        )
+
         self.help_menu.addAction(
             QAction(
                 "&Source Code",

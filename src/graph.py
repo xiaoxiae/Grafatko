@@ -275,7 +275,6 @@ class Drawable(ABC):
     def draw(self, painter: QPainter, palette: QPalette):
         """A method that draws the object on the canvas. Takes the painter to paint on
         and the palette to generate relative colors from."""
-        pass
 
 
 class DrawableNode(Drawable, Node):
@@ -291,11 +290,14 @@ class DrawableNode(Drawable, Node):
         self.brush = Brush(DEFAULT, Qt.SolidPattern)
 
         # for drawing the outgoing vertices
-        self.adjacent_pens: Dict[Node, Callable[[QPalette], QPen]] = {}
+        self.adjacent_pens: Dict[Node, Pen] = {}
 
         # for information about being dragged
         # at that point, no forces act on it
         self.drag: Union[Vector, None] = None
+
+        # whether it's currently selected or not
+        self.selected = False
 
     def get_adjacent(self) -> Dict[Node, Union[int, float]]:
         """Returns nodes adjacent to the node."""
@@ -310,14 +312,30 @@ class DrawableNode(Drawable, Node):
         self.position = position - (self.drag or Vector(0, 0))
 
     def start_drag(self, position: Vector):
+        """Start dragging the node, setting its drag offset from the mouse."""
         self.drag = position - self.get_position()
 
     def stop_drag(self) -> Vector:
-        self.forces = []
+        """Stop dragging the node."""
         self.drag = None
 
     def is_dragged(self) -> bool:
+        """Return true if the node is currently in a dragged state."""
         return self.drag is not None
+
+    def select(self):
+        """Mark the node as selected."""
+        self.brush.color = SELECTED
+        self.selected = True
+
+    def deselect(self):
+        """Mark the node as not selected."""
+        self.brush.color = DEFAULT
+        self.selected = False
+
+    def is_selected(self) -> bool:
+        """Return, whether the node is selected or not."""
+        return self.selected
 
     def add_force(self, force: Vector):
         """Adds a force that is acting upon the node to the force list."""
@@ -355,6 +373,10 @@ class DrawableGraph(Drawable, Graph):
         for node in self.get_nodes():
             node.draw(painter, palette)
 
+    def get_selected(self) -> List[DrawableNode]:
+        """Yield all currently selected nodes."""
+        return [node for node in self.get_nodes() if node.is_selected()]
+
     def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
         """A wrapper around the normal Graph() add_vertex function that also adds the
         pen function with which to draw the vertex."""
@@ -373,8 +395,7 @@ class DrawableGraph(Drawable, Graph):
 
         # special case for a node pointing to itself
         if n1 is n2:
-            pass  # TODO special case for a loop
-
+            return  # TODO special case for a loop
         else:
             start, end = self.__get_vertex_position(n1, n2)
 

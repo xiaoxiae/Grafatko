@@ -5,17 +5,40 @@ from PyQt5.QtCore import *
 
 from typing import *
 
+from dataclasses import dataclass
+
 
 def DEFAULT(palette: QPalette) -> QColor:
     """The default color, taken from the color of the text."""
     return palette.text().color()
 
 
-def Brush(color: Callable[[QPalette], QColor], style: Qt.BrushStyle) -> QBrush:
-    """A function that construct a brush from a color function and a style."""
-    return lambda p: QBrush(color(p), style)
+def SELECTED(palette: QPalette) -> QColor:
+    """The default color, taken from the color of the text."""
+    return palette.alternateBase().color()
 
 
-def Pen(color: Callable[[QPalette], QColor], style: Qt.PenStyle) -> QPen:
-    """A function that construct a pen from a color function and a style."""
-    return lambda p: QPen(color(p), style)
+@dataclass
+class Colorable:
+    color: Callable[[QPalette], QColor] = None
+
+
+@dataclass
+class Pen(Colorable):
+    """A (wrapper) object storing a pen object."""
+
+    style: Qt.PenStyle = None
+    width: float = 0.3
+
+    def __call__(self, palette: QPalette):
+        return QPen(self.color(palette), self.width, self.style)
+
+
+@dataclass
+class Brush(Colorable):
+    """A (wrapper) object storing a brush object."""
+
+    style: Qt.BrushStyle = None
+
+    def __call__(self, palette: QPalette):
+        return QBrush(self.color(palette), self.style)
