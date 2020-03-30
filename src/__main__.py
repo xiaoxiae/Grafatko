@@ -33,6 +33,9 @@ class CanvasTransformation:
     scale: float = 20
     translation: float = Vector(0, 0)
 
+    # how smooth to make the centering of the transformation
+    center_smoothness: Final = 0.3
+
     def transform_painter(self, painter: QPainter):
         """Translate the painter according to the current canvas state."""
         painter.translate(*self.translation)
@@ -42,11 +45,14 @@ class CanvasTransformation:
         """Apply the current canvas transformation on the point."""
         return (point - self.translation) / self.scale
 
+    def inverse(self, point: Vector):
+        """The inverse of apply."""
+        return point * self.scale + self.translation
+
     def center(self, point: Vector):
         """Center the transformation on the given point."""
         middle = self.apply(Vector(self.canvas.width(), self.canvas.height()) / 2)
-
-        self.translation += middle - point
+        self.translation = self.inverse((middle - point) * self.center_smoothness)
 
     def zoom(self, position: Vector, delta: float):
         """Zoom in/out."""
