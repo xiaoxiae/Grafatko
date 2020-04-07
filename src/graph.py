@@ -314,7 +314,7 @@ class DrawableNode(Drawable, Node):
         return self.position
 
     def set_position(self, position: Vector):
-        """Return the position of the node (accounted for drag)."""
+        """Set the position of the node (accounted for drag)."""
         self.position = position - (self.drag or Vector(0, 0))
 
     def start_drag(self, position: Vector):

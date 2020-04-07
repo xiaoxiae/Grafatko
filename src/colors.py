@@ -28,7 +28,7 @@ class Pen(Colorable):
     """A (wrapper) object storing a pen object."""
 
     style: Qt.PenStyle = None
-    width: float = 0.3
+    width: float = 0.1
 
     def __call__(self, palette: QPalette):
         return QPen(self.color(palette), self.width, self.style)

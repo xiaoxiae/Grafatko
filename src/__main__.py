@@ -58,7 +58,7 @@ class CanvasTransformation:
         """Zoom in/out."""
         # adjust the scale
         previous_scale = self.scale
-        self.scale *= 2 ** delta  # a little ad-hoc way to smoothly scale
+        self.scale *= 2 ** delta  # scale smoothly
 
         # adjust translation so the x and y of the mouse stay in the same spot
         self.translation -= position * (self.scale - previous_scale)
@@ -66,9 +66,9 @@ class CanvasTransformation:
 
 @dataclass
 class Keyboard:
-    """A small class for storing information about the keyboard."""
+    """A class for storing information about the keyboard."""
 
-    # TODO: add custom config, essentially acting like space is some other key
+    # TODO: add custom config, essentially acting like space is some other Qt key
 
     keys: Dict[int, bool] = field(
         default_factory=lambda: {Qt.Key_Space: False, Qt.Key_Delete: False}
@@ -155,6 +155,7 @@ class Canvas(QWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
+        # TODO: add a mouse select thingy for selecting multiple nodes
 
         # GRAPH
         self.graph = DrawableGraph()
@@ -296,15 +297,19 @@ class Canvas(QWidget):
 
         # rotate the nodes that are weakly connected to any of the selected nodes
         for node in self.graph.get_nodes():
+            rotated = set()
+
             for selected in nodes:
-                if self.graph.weakly_connected(node, selected):
+                if self.graph.weakly_connected(node, selected) and node not in rotated:
                     node.set_position(node.get_position().rotated(angle, pivot))
+                    rotated.add(node)
 
     def mousePressEvent(self, event):
         """Called when a left click is registered."""
         self.setFocus()
         self.mouse.pressed(event)
 
+        # get the node at the position where we clicked
         pressed = self.graph.node_at_position(self.mouse.get_position())
 
         if self.mouse.left():
@@ -336,6 +341,7 @@ class Canvas(QWidget):
         # only select one when shift is not pressed
         if not self.keyboard.shift():
             self.deselect()
+
         node.select()
 
     def deselect(self):
