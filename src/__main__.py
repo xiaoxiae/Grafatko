@@ -553,6 +553,9 @@ class GraphVisualizer(QMainWindow):
         layout.addWidget(QPushButton("complement", self), 1, 2)
         layout.addWidget(QPushButton("reorient", self), 2, 2)
 
+        # for inputting stuff to the graph
+        layout.addWidget(QLineEdit(self), 3, 0, 1, -1)
+
         self.dock_widget.setLayout(layout)
 
         ### Set the dock menu as the dock widget for the app
