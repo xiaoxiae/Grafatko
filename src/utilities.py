@@ -126,3 +126,8 @@ class Vector:
     def repeat(self, n):
         """Performs sequence repetition on the vector (n times)."""
         return Vector(*self.values * n)
+
+    @classmethod
+    def average(cls, l: List[Vector]):
+        """Return the average of the given vectors."""
+        return sum(l[1:], l[0]) / len(l)

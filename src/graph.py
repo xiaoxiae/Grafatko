@@ -317,9 +317,9 @@ class DrawableNode(Drawable, Node):
         """Set the position of the node (accounted for drag)."""
         self.position = position - (self.drag or Vector(0, 0))
 
-    def start_drag(self, position: Vector):
+    def start_drag(self, mouse_position: Vector):
         """Start dragging the node, setting its drag offset from the mouse."""
-        self.drag = position - self.get_position()
+        self.drag = mouse_position - self.get_position()
 
     def stop_drag(self) -> Vector:
         """Stop dragging the node."""
@@ -399,9 +399,9 @@ class DrawableGraph(Drawable, Graph):
         """Draw the specified vertex."""
         painter.setPen(n1.adjacent_pens[n2](palette))
 
-        # special case for a node pointing to itself
+        # special case for a loopty-doopty (not infantile at all :P)
         if n1 is n2:
-            return  # TODO special case for a loop
+            return  # TODO special case for a loopty-doo
         else:
             start, end = self.__get_vertex_position(n1, n2)
 
@@ -417,10 +417,13 @@ class DrawableGraph(Drawable, Graph):
                     QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
                 )
 
-        painter.drawLine(QPointF(*start), QPointF(*end))
+            painter.drawLine(QPointF(*start), QPointF(*end))
 
-        if self.get_weighted():
-            pass  # TODO draw the weight
+            # draw the weight, if the graph is weighted
+            mid = (start + end) / 2
+
+            if self.get_weighted():
+                pass  # TODO draw the weight
 
     def __get_vertex_position(self, n1: Node, n2: Node) -> Tuple[Vector, Vector]:
         """Return the position of the vertex on the screen."""
