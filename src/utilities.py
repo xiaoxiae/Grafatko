@@ -128,6 +128,11 @@ class Vector:
         return Vector(*self.values * n)
 
     @classmethod
+    def sum(cls, l: List[Vector]):
+        """Return the sum of the given vectors."""
+        return sum(l[1:], l[0])
+
+    @classmethod
     def average(cls, l: List[Vector]):
         """Return the average of the given vectors."""
-        return sum(l[1:], l[0]) / len(l)
+        return Vector.sum(l) / len(l)

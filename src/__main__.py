@@ -64,6 +64,7 @@ class CanvasTransformation:
         self.translation -= position * (self.scale - previous_scale)
 
 
+# TODO MOVE THESE INTO A SEPARATE CLASS
 @dataclass
 class Pressable:
     state: bool = False
@@ -74,7 +75,6 @@ class Keyboard:
     """A class for storing information about the keyboard."""
 
     # TODO: add custom config, essentially acting like space is some other Qt key
-    # TODO: make Keyboard and Mouse more OOP
 
     keys: Dict[int, bool] = field(
         default_factory=lambda: {
@@ -172,7 +172,9 @@ class Mouse:
 
 class Canvas(QWidget):
     # WIDGET OPTIONS
-    lighten_coefficient = 10  # how much lighter/darker the canvas is (to background)
+    contrast_coefficient = 10
+    background_brush = Brush(lighter(BACKGROUND, 100 + contrast_coefficient))
+    background_pen = Pen(darker(BACKGROUND, 100 + contrast_coefficient))
 
     # whether the forces are enabled/disabled
     forces: bool = True
@@ -247,32 +249,21 @@ class Canvas(QWidget):
         """Paints the board."""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing, True)
+        palette = self.palette()
 
         # clip
         painter.setClipRect(0, 0, self.width(), self.height())
 
-        # paint the background
-        self.paint_background(painter)
+        # draw the background
+        painter.setBrush(self.background_brush(palette))
+        painter.setPen(self.background_pen(palette))
+        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
 
         # transform the coordinates according to the current state of the canvas
         self.transformation.transform_painter(painter)
 
-        # paint the graph
-        self.graph.draw(painter, self.palette())
-
-    def paint_background(self, painter: QPainter):
-        """Paint the background of the widget."""
-        # color shenanigans
-        default_background = self.palette().color(QPalette.Background)
-
-        background_color = default_background.lighter(100 + self.lighten_coefficient)
-        border_color = default_background.darker(100 + self.lighten_coefficient)
-
-        painter.setBrush(QBrush(background_color, Qt.SolidPattern))
-        painter.setPen(QPen(border_color, Qt.SolidLine))
-
-        # draw background
-        painter.drawRect(0, 0, self.width() - 1, self.height() - 1)
+        # draw the graph
+        self.graph.draw(painter, palette)
 
     def keyReleaseEvent(self, event):
         """Called when a key press is registered."""

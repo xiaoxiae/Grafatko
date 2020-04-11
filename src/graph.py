@@ -34,11 +34,11 @@ class Node:
         """Returns nodes adjacent to the node."""
         return self.adjacent
 
-    def get_label(self) -> Union[str, None]:
+    def get_label(self) -> Optional[str]:
         """Returns the label of the node (or None if has none)."""
         return self.label
 
-    def set_label(self, label: Union[str, None]):
+    def set_label(self, label: Optional[str]):
         """Sets the label of the node to the specified value."""
         self.label = label
 
@@ -99,11 +99,11 @@ class Graph:
     def set_directed(self, directed: bool):
         """Sets, whether the graph is directed or not."""
         # if we're converting to undirected, make all current vertices go both ways
-        if not directed and not self.directed:
+        if not directed:
             for node in self.nodes:
-                for neighbour in node.adjacent:
+                for neighbour in list(node.adjacent):
                     if node is neighbour:
-                        # no loops allowed!
+                        # no loops allowed >:C
                         self.remove_vertex(node, neighbour)
                     else:
                         self.add_vertex(neighbour, node)
@@ -118,13 +118,10 @@ class Graph:
         """Sets, whether the graph is weighted or not."""
         self.weighted = value
 
-    def get_weight(self, n1: Node, n2: Node) -> Union[Union[int, float], None]:
+    def get_weight(self, n1: Node, n2: Node) -> Optional[Union[int, float]]:
         """Returns the weight of the specified vertex (and None if they're not connected)."""
-        return (
-            None
-            if not self.is_vertex(n1, n2)
-            else self.nodes[self.nodes.index(n1)].adjacent[n2]
-        )
+        if self.is_vertex(n1, n2):
+            return self.nodes[self.nodes.index(n1)].adjacent[n2]
 
     def get_nodes(self) -> List[Node]:
         """Returns a list of nodes of the graph."""
@@ -146,7 +143,7 @@ class Graph:
                 del node.adjacent[n]
 
     @recalculate_components
-    def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
+    def add_vertex(self, n1: Node, n2: Node, weight: Optional[Union[int, float]] = 1):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
         if the graph is not directed and the node wants to point to itself)."""
@@ -300,7 +297,7 @@ class DrawableNode(Drawable, Node):
 
         # for information about being dragged
         # at that point, no forces act on it
-        self.drag: Union[Vector, None] = None
+        self.drag: Optional[Vector] = None
 
         # whether it's currently selected or not
         self.selected = False
@@ -365,11 +362,18 @@ class DrawableNode(Drawable, Node):
 
 
 class DrawableGraph(Drawable, Graph):
-    arrowhead_size: float = 0.5
-    arrow_separation: float = pi / 7
+    # TODO explain all these constants
+    font = None
+
+    arrowhead_size: Final[float] = 0.5
+    arrow_separation: Final[float] = pi / 7
+
+    loop_arrowhead_angle: Final[float] = -30.0
 
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
+        self.font = painter.font()
+
         # first, draw all vertices
         for node in self.get_nodes():
             for adjacent in node.get_adjacent():
@@ -383,7 +387,7 @@ class DrawableGraph(Drawable, Graph):
         """Yield all currently selected nodes."""
         return [node for node in self.get_nodes() if node.is_selected()]
 
-    def add_vertex(self, n1: Node, n2: Node, weight: Union[int, float] = None):
+    def add_vertex(self, n1: Node, n2: Node, *args, **kwargs):
         """A wrapper around the normal Graph() add_vertex function that also adds the
         pen function with which to draw the vertex."""
         n1.adjacent_pens[n2] = Pen(DEFAULT, Qt.SolidLine)
@@ -391,42 +395,81 @@ class DrawableGraph(Drawable, Graph):
         if not self.directed:
             n2.adjacent_pens[n1] = Pen(DEFAULT, Qt.SolidLine)
 
-        super().add_vertex(n1, n2, weight)
+        super().add_vertex(n1, n2, *args, **kwargs)
 
     def __draw_vertex(
         self, painter: QPainter, palette: QPalette, n1: DrawableNode, n2: DrawableNode
     ):
         """Draw the specified vertex."""
         painter.setPen(n1.adjacent_pens[n2](palette))
+        painter.setBrush(Qt.NoBrush)
 
-        # special case for a loopty-doopty (not infantile at all :P)
+        # special case for a loop
         if n1 is n2:
-            return  # TODO special case for a loopty-doo
+            # draw the ellipse that symbolizes a loop
+            center = n1.get_position() - Vector(0.5, 1)
+            painter.drawEllipse(QPointF(*center), 0.5, 0.5)
+
+            # draw the head of the loop arrow
+            head_direction = Vector(0, 1).rotated(radians(self.loop_arrowhead_angle))
+            self.__draw_arrow_tip(center + Vector(0.5, 0), head_direction, painter)
         else:
             start, end = self.__get_vertex_position(n1, n2)
 
-            # draw the head of a directed arrow, which is an equilateral triangle
-            if self.get_directed():
-                uv = (end - start).unit()
-
-                # the brush color is given by the current pen
-                painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
-                painter.drawPolygon(
-                    QPointF(*end),
-                    QPointF(*(end + (-uv).rotated(radians(30)) * self.arrowhead_size)),
-                    QPointF(*(end + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
-                )
-
+            # draw the line
             painter.drawLine(QPointF(*start), QPointF(*end))
 
-            # draw the weight, if the graph is weighted
-            mid = (start + end) / 2
+            # draw the head of a directed arrow, which is an equilateral triangle
+            if self.get_directed():
+                self.__draw_arrow_tip(end, end - start, painter)
 
-            if self.get_weighted():
-                pass  # TODO draw the weight
+        # draw the weight
+        if self.get_weighted():
+            # set the color to be the same as the vertex
+            color = n1.adjacent_pens[n2].color(palette)
+            painter.setBrush(QBrush(color, Qt.SolidPattern))
+
+            rect = self.__get_weight_box(n1, n2)
+            painter.drawRect(rect)
+
+            # TODO make the font smaller to match the transformation
+            painter.setBrush(Brush(BACKGROUND)(palette))
+            painter.setPen(Pen(BACKGROUND)(palette))
+            painter.drawText(rect, Qt.AlignCenter, str(n1.get_adjacent()[n2]))
+
+    def __get_weight_box(self, n1: DrawableNode, n2: DrawableNode) -> QRectF:
+        """Get the rectangle that the text should be drawn in."""
+        # get the rectangle that bounds the text (according to the current font metric)
+        metrics = QFontMetrics(self.font)
+        r = metrics.boundingRect(str(n1.get_adjacent()[n2]))
+
+        size = Vector(r.width(), r.height())
+
+        # get the mid point of the weight box, depending on whether it's a loop or not
+        if n1 is n2:
+            # TODO calculate the coordinates of this second vector for it to look good
+            mid = n1.get_position() - Vector(0, 0)
+        else:
+            mid = Vector.average(self.__get_vertex_position(n1, n2))
+
+        rect = QRectF(*(mid - size / 2), *size)
+
+        return rect
+
+    def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
+        """Draw the tip of the vertex (as a triangle)."""
+        uv = direction.unit()
+
+        # the brush color is given by the current pen
+        painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
+        painter.drawPolygon(
+            QPointF(*pos),
+            QPointF(*(pos + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+            QPointF(*(pos + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+        )
 
     def __get_vertex_position(self, n1: Node, n2: Node) -> Tuple[Vector, Vector]:
-        """Return the position of the vertex on the screen."""
+        """Return the starting and ending position of the vertex on the screen."""
         # positions of the nodes
         n1_p = Vector(*n1.get_position())
         n2_p = Vector(*n2.get_position())
