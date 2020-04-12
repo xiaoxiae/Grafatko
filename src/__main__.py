@@ -1,23 +1,21 @@
 import os
 import sys
 
-# QT
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-from qtmodern import styles  # themes
+from qtmodern import styles
 
-# UTILITIES
 from typing import *
 from functools import partial
 from random import random
 from math import radians
 import argparse
+import webbrowser
 
 from graph import *
 from utilities import *
 from controls import *
-import webbrowser  # opening the browser
 
 
 class Canvas(QWidget):

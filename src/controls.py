@@ -2,9 +2,10 @@
 
 from dataclasses import *
 from typing import *
-from utilities import *
 
 from PyQt5.QtCore import Qt
+
+from utilities import *
 
 
 @dataclass

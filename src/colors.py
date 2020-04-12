@@ -1,11 +1,10 @@
 """A class for constructing various colors, given the current canvas palette."""
 
+from typing import *
+from dataclasses import dataclass
+
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
-
-from typing import *
-
-from dataclasses import dataclass
 
 
 def DEFAULT(palette: QPalette) -> QColor:

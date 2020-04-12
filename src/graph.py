@@ -4,19 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import *
 
-# QT
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 
-# UTILITIES
-from utilities import *
 from ast import literal_eval
 from collections import defaultdict
 from math import sqrt, cos, sin, radians, pi
 from abc import *
 
-# COLORS
+from utilities import *
 from colors import *
 
 
