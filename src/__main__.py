@@ -151,17 +151,18 @@ class Canvas(QWidget):
         self.mouse.moved_event(event)
 
         # update dragged nodes (unless we are holding down space, centering on them)
+        # also move the canvas (unless holding down space)
         if not self.keyboard.space.pressed():
             for node in self.graph.get_nodes():
                 if node.is_dragged():
                     # TODO also drag weakly connected nodes on shift press
                     node.set_position(self.mouse.get_position())
 
-        if self.mouse.middle.pressed():
-            # move canvas when the middle button is pressed
-            curr = self.mouse.get_position()
-            prev = self.mouse.get_previous_position()
-            self.transformation.translate(curr - prev)
+            if self.mouse.middle.pressed():
+                # move canvas when the middle button is pressed
+                curr = self.mouse.get_position()
+                prev = self.mouse.get_previous_position()
+                self.transformation.translate(curr - prev)
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
