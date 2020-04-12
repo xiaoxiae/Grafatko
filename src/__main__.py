@@ -1,22 +1,18 @@
 import os
 import sys
 
-# CLEAN CODE :)
-from typing import *
-
-
 # QT
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-
 from qtmodern import styles  # themes
 
-
 # UTILITIES
+from typing import *
 from functools import partial
 from random import random
 from math import radians
+import argparse
 
 from graph import *
 from utilities import *
@@ -24,7 +20,7 @@ import webbrowser  # opening the browser
 
 
 @dataclass
-class CanvasTransformation:
+class Transformation:
     """A class for working with the current transformation of the canvas."""
 
     canvas: QWidget  # get the widget so we can calculate the current width and height
@@ -54,6 +50,10 @@ class CanvasTransformation:
         middle = self.apply(Vector(self.canvas.width(), self.canvas.height()) / 2)
         self.translation = self.inverse((middle - point) * self.center_smoothness)
 
+    def translate(self, delta: Vector):
+        """Translate the transformation by the vector delta delta."""
+        self.translation += delta * self.scale
+
     def zoom(self, position: Vector, delta: float):
         """Zoom in/out."""
         # adjust the scale
@@ -64,110 +64,121 @@ class CanvasTransformation:
         self.translation -= position * (self.scale - previous_scale)
 
 
-# TODO MOVE THESE INTO A SEPARATE CLASS
 @dataclass
 class Pressable:
     state: bool = False
 
+    def pressed(self):
+        """Return True if the Pressable is currently pressed. Prevents sending two press
+        events in a row."""
+        return self.state
 
-@dataclass
+    def released(self):
+        """Return True if the Pressable is currently released. Prevents sending two
+        release events in a row."""
+        return not self.state
+
+    def update_state(self, value: bool):
+        """Update the state of the pressable."""
+        self.state = value
+
+
 class Keyboard:
     """A class for storing information about the keyboard."""
 
-    # TODO: add custom config, essentially acting like space is some other Qt key
-
-    keys: Dict[int, bool] = field(
-        default_factory=lambda: {
+    def __init__(self):
+        self.keys: Dict[int, bool] = {
             Qt.Key_Space: Pressable(),
             Qt.Key_Delete: Pressable(),
             Qt.Key_Shift: Pressable(),
         }
-    )
 
-    def __set_key(self, key: int, value: bool):
-        """Set (attempt to) key in the dictionary to a given value."""
+        # TODO: add custom config (imported from a file)
+
+        # dynamically create the properties
+        self.__class__.space = property(lambda self: self.keys[Qt.Key_Space])
+        self.__class__.delete = property(lambda self: self.keys[Qt.Key_Delete])
+        self.__class__.shift = property(lambda self: self.keys[Qt.Key_Shift])
+
+    def __set_key(self, key: int, value: bool) -> Optional[Pressable]:
+        """Set (attempt to) key in the dictionary to a given value, returning the object
+        if it succeeded."""
         if key in self.keys:
-            self.keys[key].state = value
+            self.keys[key].update_state(value)
+            return self.keys[key]
 
-    def pressed(self, event):
+    def pressed_event(self, event) -> Optional[Pressable]:
         """Update keyboard status when a key is pressed."""
-        self.__set_key(event.key(), True)
+        return self.__set_key(event.key(), True)
 
-    def released(self, event):
+    def released_event(self, event) -> Optional[Pressable]:
         """Update keyboard status when a key is released."""
-        self.__set_key(event.key(), False)
-
-    def space(self):
-        return self.keys[Qt.Key_Space]
-
-    def delete(self):
-        return self.keys[Qt.Key_Delete]
-
-    def shift(self):
-        return self.keys[Qt.Key_Shift]
+        return self.__set_key(event.key(), False)
 
 
 @dataclass
 class MouseButtonState(Pressable):
     """An object representing the state of a mouse button."""
 
-    pressed: Optional[Vector] = None  # last position where it was pressed
-    released: Optional[Vector] = None  # last position where it was released
+    # TODO: getters and setters
+    last_pressed: Optional[Vector] = None  # last position where it was pressed
+    last_released: Optional[Vector] = None  # last position where it was released
 
 
-@dataclass
 class Mouse:
     """A class for storing information about the mouse."""
 
-    transformation: CanvasTransformation
+    def __init__(self, transformation: Transformation):
+        self.transformation = transformation  # current canvas transformation
 
-    position: Optional[Vector] = None  # position on canvas
-
-    # for storing where the last press/release occurred, and whether it is currently being held
-    buttons: Dict[int, Tuple[Optional[Vector], Optional[Vector], bool]] = field(
-        default_factory=lambda: {
+        self.buttons: Dict[int, bool] = {
             Qt.LeftButton: MouseButtonState(),
             Qt.RightButton: MouseButtonState(),
             Qt.MiddleButton: MouseButtonState(),
         }
-    )
 
-    def moved(self, event):
-        """Update the mouse coordinates."""
+        self.position: Optional[Vector] = None  # position on canvas
+        self.prev_position: Optional[Vector] = None  # previous position on canvas
+
+        # dynamically create the properties
+        self.__class__.left = property(lambda self: self.buttons[Qt.LeftButton])
+        self.__class__.middle = property(lambda self: self.buttons[Qt.MiddleButton])
+        self.__class__.right = property(lambda self: self.buttons[Qt.RightButton])
+
+    def moved_event(self, event):
+        self.prev_position = self.position
         self.position = Vector(event.pos().x(), event.pos().y())
 
     def get_position(self):
         """Get the current mouse position."""
         return self.transformation.apply(self.position)
 
-    def __set_button(self, button: int, position: Vector, pressed: bool):
+    def get_previous_position(self):
+        """Get the previous mouse position."""
+        return self.transformation.apply(self.prev_position)
+
+    def __set_button(
+        self, button: int, position: Vector, value: bool
+    ) -> MouseButtonState:
         """Set (attempt to) button in the dictionary to a given value."""
         if button in self.buttons:
-            if pressed:
-                self.buttons[button].pressed = position
+            # TODO getters and setters
+            if value:
+                self.buttons[button].last_pressed = position
             else:
-                self.buttons[button].released = position
+                self.buttons[button].last_released = position
 
-            self.buttons[button].state = pressed
+            self.buttons[button].update_state(value)
 
-    def pressed(self, event):
-        """Update mouse status when a key is pressed."""
-        self.moved(event)
-        self.__set_button(event.button(), self.get_position(), True)
+            return self.buttons[button]
 
-    def released(self, event):
-        """Update mouse status when a key is pressed."""
-        self.moved(event)
-        self.__set_button(event.button(), self.get_position(), False)
+    def pressed_event(self, event):
+        self.moved_event(event)
+        return self.__set_button(event.button(), self.get_position(), True)
 
-    def left(self):
-        return self.buttons[Qt.LeftButton]
-
-    def right(self):
-        return self.buttons[Qt.RightButton]
-
-    def middle(self):
-        return self.buttons[Qt.MiddleButton]
+    def released_event(self, event):
+        self.moved_event(event)
+        return self.__set_button(event.button(), self.get_position(), False)
 
 
 class Canvas(QWidget):
@@ -191,7 +202,7 @@ class Canvas(QWidget):
         self.graph = DrawableGraph()
 
         # CANVAS STUFF
-        self.transformation = CanvasTransformation(self)
+        self.transformation = Transformation(self)
 
         # MOUSE
         self.mouse = Mouse(self.transformation)
@@ -240,7 +251,7 @@ class Canvas(QWidget):
                 n1.evaluate_forces()
 
         # if space is being pressed, center around the currently selected nodes
-        if self.keyboard.space().state and len(ns := self.graph.get_selected()) != 0:
+        if self.keyboard.space.pressed() and len(ns := self.graph.get_selected()) != 0:
             self.transformation.center(Vector.average([n.get_position() for n in ns]))
 
         super().update(*args)
@@ -267,72 +278,74 @@ class Canvas(QWidget):
 
     def keyReleaseEvent(self, event):
         """Called when a key press is registered."""
-        self.keyboard.released(event)
+        key = self.keyboard.released_event(event)
+
+        if key is self.keyboard.shift:
+            self.stop_shift_dragging_nodes()
+
+    def start_shift_dragging_nodes(self):
+        """Start dragging nodes that are weakly connected to some selected nodes."""
+        selected = self.graph.get_selected()
+        for n in self.graph.get_weakly_connected(*selected):
+            if not n.is_dragged() and n not in selected:
+                n.start_drag(self.mouse.get_position())
+
+    def stop_shift_dragging_nodes(self):
+        """Stop dragging nodes that are weakly connected to some selected nodes."""
+        selected = self.graph.get_selected()
+        for n in self.graph.get_weakly_connected(*selected):
+            if n.is_dragged() and n not in selected:
+                n.stop_drag()
 
     def keyPressEvent(self, event):
         """Called when a key press is registered."""
-        self.keyboard.pressed(event)
+        key = self.keyboard.pressed_event(event)
 
         # delete selected nodes on del press
-        if self.keyboard.delete().state:
+        if key is self.keyboard.delete:
             for node in self.graph.get_selected():
                 self.graph.remove_node(node)
 
+        elif key is self.keyboard.shift and self.mouse.left.pressed():
+            self.start_shift_dragging_nodes()
+
     def mouseMoveEvent(self, event):
         """Is called when the mouse is moved across the canvas."""
-        self.mouse.moved(event)
+        self.mouse.moved_event(event)
 
         # update dragged nodes (unless we are holding down space, centering on them)
-        if not self.keyboard.space().state:
+        if not self.keyboard.space.pressed():
             for node in self.graph.get_nodes():
                 if node.is_dragged():
                     # TODO also drag weakly connected nodes on shift press
                     node.set_position(self.mouse.get_position())
 
+        if self.mouse.middle.pressed():
+            # move canvas when the middle button is pressed
+            curr = self.mouse.get_position()
+            prev = self.mouse.get_previous_position()
+            self.transformation.translate(curr - prev)
+
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
         # TODO: deselect on release
-        self.mouse.released(event)
+        key = self.mouse.released_event(event)
 
-        # stop dragging the nodes
-        for node in self.graph.get_selected():
-            node.stop_drag()
-
-    def wheelEvent(self, event):
-        """Is called when the mouse wheel is turned."""
-        delta = radians(event.angleDelta().y() / 8)
-
-        # rotate nodes on shift press
-        if self.keyboard.shift().state:
-            if len(self.graph.get_selected()) != 0:
-                self.rotate_about_selected(delta)
-
-        # zoom on canvas on not shift press
-        else:
-            self.transformation.zoom(self.mouse.get_position(), delta)
-
-    def rotate_about_selected(self, angle: float):
-        """Rotate about the average of selected nodes by the angle."""
-        nodes = self.graph.get_selected()
-
-        # rotate the nodes that are weakly connected to any of the selected nodes
-        for node in self.graph.get_nodes():
-            rotated = set()  # as to not rotate multiple times
-            for selected in nodes:
-                if self.graph.weakly_connected(node, selected) and node not in rotated:
-                    pivot = Vector.average([n.get_position() for n in nodes])
-                    node.set_position(node.get_position().rotated(angle, pivot))
-                    rotated.add(node)
+        # stop dragging the nodes, if left is released
+        if key is self.mouse.left:
+            self.stop_shift_dragging_nodes()
+            for node in self.graph.get_selected():
+                node.stop_drag()
 
     def mousePressEvent(self, event):
         """Called when a left click is registered."""
         self.setFocus()  # TODO remove this?
-        self.mouse.pressed(event)
+        key = self.mouse.pressed_event(event)
 
         # get the node at the position where we clicked
         pressed = self.graph.node_at_position(self.mouse.get_position())
 
-        if self.mouse.left().state:
+        if key is self.mouse.left:
             # if we hit a node, start dragging the nodes
             if pressed is not None:
                 self.select(pressed)
@@ -340,10 +353,14 @@ class Canvas(QWidget):
                 # start dragging the nodes
                 for node in self.graph.get_selected():
                     node.start_drag(self.mouse.get_position())
+
+                # also start dragging other nodes if shift is pressed
+                if self.keyboard.shift.pressed():
+                    self.start_shift_dragging_nodes()
             else:
                 self.deselect_all()
 
-        elif self.mouse.right():
+        elif key is self.mouse.right:
             # if there isn't a node at the position, create a new one
             if pressed is None:
                 pressed = DrawableNode(self.mouse.get_position())
@@ -356,10 +373,36 @@ class Canvas(QWidget):
 
             self.select(pressed)
 
+    def wheelEvent(self, event):
+        """Is called when the mouse wheel is turned."""
+        delta = radians(event.angleDelta().y() / 8)
+
+        # rotate nodes on shift press
+        if self.keyboard.shift.pressed():
+            if len(selected := self.graph.get_selected()) != 0:
+                nodes = self.graph.get_weakly_connected(*self.graph.get_selected())
+                pivot = Vector.average([n.get_position() for n in selected])
+                self.rotate_about(nodes, delta, pivot)
+
+        # zoom on canvas on not shift press
+        else:
+            # if some nodes are being centered on, don't use mouse
+            nodes = self.graph.get_selected()
+            if self.keyboard.space.pressed() and len(nodes) != 0:
+                positions = [p.get_position() for p in nodes]
+                self.transformation.zoom(Vector.average(positions), delta)
+            else:
+                self.transformation.zoom(self.mouse.get_position(), delta)
+
+    def rotate_about(self, nodes: Sequence[DrawableNode], angle: float, pivot: Vector):
+        """Rotate about the average of selected nodes by the angle."""
+        for node in nodes:
+            node.set_position(node.get_position().rotated(angle, pivot), True)
+
     def select(self, node: DrawableNode):
         """Select the given node."""
         # only select one when shift is not pressed
-        if not self.keyboard.shift().state:
+        if not self.keyboard.shift.pressed():
             self.deselect_all()
 
         # else just select the node
@@ -422,8 +465,12 @@ class GraphVisualizer(QMainWindow):
 
         super().__init__()
 
-        # TODO: command line argument parsing (--dark and stuff)
         styles.light(QApplication.instance())
+
+        # TODO: command line argument parsing (--dark and stuff)
+        # parser = argparse.ArgumentParser(description="")
+        # arguments = parser.parse_args()
+        # print(arguments)
 
         # Widgets
         ## Canvas (main widget)

@@ -4,12 +4,10 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import *
 
-
 # QT
 from PyQt5.QtCore import *
 from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
-
 
 # UTILITIES
 from utilities import *
@@ -17,7 +15,6 @@ from ast import literal_eval
 from collections import defaultdict
 from math import sqrt, cos, sin, radians, pi
 from abc import *
-
 
 # COLORS
 from colors import *
@@ -80,6 +77,18 @@ class Graph:
                 self.components.append(component)
 
         return wrapper
+
+    def get_weakly_connected(self, *args: Sequence[Node]) -> List[Node]:
+        """Return a list of all nodes that are weakly connected to any node from the
+        given sequence."""
+        nodes = set()
+
+        for node in args:
+            for component in self.components:
+                if node in component:
+                    nodes |= component
+
+        return list(nodes)
 
     def weakly_connected(self, n1: Node, n2: Node):
         """Return True if the nodes are weakly connected."""
@@ -147,6 +156,7 @@ class Graph:
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
         if the graph is not directed and the node wants to point to itself)."""
+        # special case for label
         if n1 is n2 and not self.directed:
             return
 
@@ -297,6 +307,7 @@ class DrawableNode(Drawable, Node):
 
         # for information about being dragged
         # at that point, no forces act on it
+        # it's the offset from the mouse when the drag started
         self.drag: Optional[Vector] = None
 
         # whether it's currently selected or not
@@ -310,9 +321,13 @@ class DrawableNode(Drawable, Node):
         """Return the position of the node."""
         return self.position
 
-    def set_position(self, position: Vector):
-        """Set the position of the node (accounted for drag)."""
-        self.position = position - (self.drag or Vector(0, 0))
+    def set_position(self, position: Vector, override_drag: bool = False):
+        """Set the position of the node (accounted for drag). The override_drag option
+        moves the node to the position even if it's currently being dragged."""
+        if override_drag and self.is_dragged():
+            self.drag += self.position - position
+        else:
+            self.position = position - (self.drag or Vector(0, 0))
 
     def start_drag(self, mouse_position: Vector):
         """Start dragging the node, setting its drag offset from the mouse."""
@@ -452,9 +467,7 @@ class DrawableGraph(Drawable, Graph):
         else:
             mid = Vector.average(self.__get_vertex_position(n1, n2))
 
-        rect = QRectF(*(mid - size / 2), *size)
-
-        return rect
+        return QRectF(*(mid - size / 2), *size)
 
     def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
         """Draw the tip of the vertex (as a triangle)."""

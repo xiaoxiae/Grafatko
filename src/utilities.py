@@ -1,3 +1,5 @@
+"""A class containing useful utility classes."""
+
 from __future__ import annotations
 from typing import *
 from math import sqrt, sin, cos
