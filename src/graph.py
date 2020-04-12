@@ -375,7 +375,8 @@ class DrawableNode(Drawable, Node):
 
 class DrawableGraph(Drawable, Graph):
     # TODO explain all these constants
-    font = None
+    font: QFont = None
+    text_scale: Final[float] = 0.06
 
     arrowhead_size: Final[float] = 0.5
     arrow_separation: Final[float] = pi / 7
@@ -441,21 +442,35 @@ class DrawableGraph(Drawable, Graph):
             color = n1.adjacent_pens[n2].color(palette)
             painter.setBrush(QBrush(color, Qt.SolidPattern))
 
+            painter.save()
+
+            # draw the bounding box
             rect = self.__get_weight_box(n1, n2)
             painter.drawRect(rect)
 
-            # TODO make the font smaller to match the transformation
             painter.setBrush(Brush(BACKGROUND)(palette))
             painter.setPen(Pen(BACKGROUND)(palette))
-            painter.drawText(rect, Qt.AlignCenter, str(n1.get_adjacent()[n2]))
+
+            scale = self.text_scale
+
+            # translate to top left and scale down to draw the actual text
+            painter.translate(rect.topLeft())
+            painter.scale(scale, scale)
+
+            # TODO: maybe refactor this
+            painter.drawText(
+                QRectF(0, 0, rect.width() / scale, rect.height() / scale),
+                Qt.AlignCenter,
+                str(n1.get_adjacent()[n2]),
+            )
+
+            painter.restore()
 
     def __get_weight_box(self, n1: DrawableNode, n2: DrawableNode) -> QRectF:
-        """Get the rectangle that the text should be drawn in."""
+        """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
         # get the rectangle that bounds the text (according to the current font metric)
         metrics = QFontMetrics(self.font)
         r = metrics.boundingRect(str(n1.get_adjacent()[n2]))
-
-        size = Vector(r.width(), r.height())
 
         # get the mid point of the weight box, depending on whether it's a loop or not
         if n1 is n2:
@@ -464,6 +479,8 @@ class DrawableGraph(Drawable, Graph):
         else:
             mid = Vector.average(self.__get_vertex_position(n1, n2))
 
+        # scale it down by text_scale before returning it
+        size = Vector(r.width(), r.height()) * self.text_scale
         return QRectF(*(mid - size / 2), *size)
 
     def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
