@@ -195,7 +195,9 @@ class Canvas(QWidget):
                 # also start dragging other nodes if shift is pressed
                 if self.keyboard.shift.pressed():
                     self.start_shift_dragging_nodes()
-            else:
+
+            # else de-select when shift is not pressed
+            elif not self.keyboard.shift.pressed():
                 self.deselect_all()
 
         elif key is self.mouse.right:
