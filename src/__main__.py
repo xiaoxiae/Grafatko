@@ -155,7 +155,6 @@ class Canvas(QWidget):
         if not self.keyboard.space.pressed():
             for node in self.graph.get_nodes():
                 if node.is_dragged():
-                    # TODO also drag weakly connected nodes on shift press
                     node.set_position(self.mouse.get_position())
 
             if self.mouse.middle.pressed():
@@ -177,7 +176,6 @@ class Canvas(QWidget):
 
     def mousePressEvent(self, event):
         """Called when a left click is registered."""
-        self.setFocus()  # TODO remove this?
         key = self.mouse.pressed_event(event)
 
         # get the node at the position where we clicked
@@ -201,17 +199,22 @@ class Canvas(QWidget):
                 self.graph.deselect_all()
 
         elif key is self.mouse.right:
-            # if there isn't a node at the position, create a new one
-            if pressed is None:
-                pressed = DrawableNode(self.mouse.get_position())
+            selected = self.graph.get_selected()
 
+            if pressed is None:
+                # if there isn't a node at the position, create a new one, connect
+                # all selected to it and select
+                pressed = DrawableNode(self.mouse.get_position())
                 self.graph.add_node(pressed)
 
-            # if some nodes are selected, connect them to the pressed node
-            for selected in self.graph.get_selected():
-                self.graph.toggle_vertex(selected, pressed)
+                for node in selected:
+                    self.graph.add_vertex(node, pressed)
 
-            self.select(pressed)
+                self.select(pressed)
+            else:
+                # if there is, toggle vertices from selected to it
+                for node in selected:
+                    self.graph.toggle_vertex(node, pressed)
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is turned."""
