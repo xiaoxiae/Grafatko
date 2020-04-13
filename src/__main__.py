@@ -298,6 +298,7 @@ class Canvas(QWidget):
 class GraphVisualizer(QMainWindow):
     def __init__(self):
         # TODO: hide toolbar and dock with f-10 or something
+        # TODO undo, redo
 
         super().__init__()
 
@@ -412,11 +413,22 @@ class GraphVisualizer(QMainWindow):
         ### Visual options
         layout.addWidget(QLabel(self, text="Visual"), 0, 1)
 
-        layout.addWidget(QCheckBox("labels", self), 1, 1)
+        layout.addWidget(
+            QCheckBox(
+                "labels",
+                self,
+                toggled=lambda value: self.canvas.get_graph().set_show_labels(value),
+            ),
+            1,
+            1,
+        )
 
         layout.addWidget(
             QCheckBox(
-                "gravity", self, toggled=lambda value: self.canvas.set_forces(value),
+                "gravity",
+                self,
+                toggled=lambda value: self.canvas.set_forces(value),
+                checked=True,
             ),
             2,
             1,

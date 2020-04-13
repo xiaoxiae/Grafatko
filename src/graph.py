@@ -282,7 +282,7 @@ class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
 
     @abstractmethod
-    def draw(self, painter: QPainter, palette: QPalette):
+    def draw(self, painter: QPainter, palette: QPalette, *args, **kwargs):
         """A method that draws the object on the canvas. Takes the painter to paint on
         and the palette to generate relative colors from."""
 
@@ -365,23 +365,30 @@ class DrawableNode(Drawable, Node):
             if not self.is_dragged():
                 self.position += force
 
-    def draw(self, painter: QPainter, palette: QPalette):
+    def draw(self, painter: QPainter, palette: QPalette, draw_label=False):
         """Draw the node at its current position with radius 1."""
         painter.setBrush(self.brush(palette))
         painter.setPen(self.pen(palette))
 
         painter.drawEllipse(QPointF(*self.position), 1, 1)
 
+        # possibly draw the label of the node
+        if draw_label:
+            pass
+
 
 class DrawableGraph(Drawable, Graph):
-    # TODO explain all these constants
-    font: QFont = None
-    text_scale: Final[float] = 0.06
 
-    arrowhead_size: Final[float] = 0.5
-    arrow_separation: Final[float] = pi / 7
+    font: QFont = None  # the font that is used to draw the weights
 
-    loop_arrowhead_angle: Final[float] = -30.0
+    # possible TODO: compute this programatically
+    text_scale: Final[float] = 0.04  # the constant by which to scale down the font
+
+    arrowhead_size: Final[float] = 0.5  # how big is the head triangle
+    arrow_separation: Final[float] = pi / 7  # how far apart are two-way vertices
+    loop_arrowhead_angle: Final[float] = -30.0  # an angle for the head in a loop
+
+    show_labels: bool = False  # whether or not to show the labels of nodes
 
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
@@ -396,11 +403,15 @@ class DrawableGraph(Drawable, Graph):
 
         # then, draw all nodes
         for node in self.get_nodes():
-            node.draw(painter, palette)
+            node.draw(painter, palette, self.show_labels)
 
     def get_selected(self) -> List[DrawableNode]:
         """Yield all currently selected nodes."""
         return [node for node in self.get_nodes() if node.is_selected()]
+
+    def set_show_labels(self, value: bool):
+        """Whether to show the node labels or not."""
+        self.show_labels = value
 
     def add_vertex(self, n1: Node, n2: Node, *args, **kwargs):
         """A wrapper around the normal Graph() add_vertex function that also adds the
