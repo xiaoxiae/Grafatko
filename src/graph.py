@@ -476,8 +476,10 @@ class DrawableGraph(Drawable, Graph):
 
         # get the mid point of the weight box, depending on whether it's a loop or not
         if n1 is n2:
-            # TODO calculate the coordinates of this second vector for it to look good
-            mid = n1.get_position() - Vector(0, 0)
+            # the distance from the center of the node to the side of the ellipse that
+            # is drawn to symbolize the loop
+            offset = Vector(0.5, 1) + Vector(0.5, 0).rotated(radians(45))
+            mid = n1.get_position() - offset
         else:
             mid = Vector.average(self.__get_vertex_position(n1, n2))
 
