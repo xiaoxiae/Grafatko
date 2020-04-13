@@ -152,9 +152,6 @@ class Transformation:
     scale: float = 20
     translation: float = Vector(0, 0)
 
-    # how smooth to make the centering of the transformation
-    center_smoothness: Final = 0.3
-
     def transform_painter(self, painter: QPainter):
         """Translate the painter according to the current canvas state."""
         painter.translate(*self.translation)
@@ -168,10 +165,10 @@ class Transformation:
         """The inverse of apply."""
         return point * self.scale + self.translation
 
-    def center(self, point: Vector):
+    def center(self, point: Vector, center_smoothness=0.3):
         """Center the transformation on the given point."""
         middle = self.apply(Vector(self.canvas.width(), self.canvas.height()) / 2)
-        self.translation = self.inverse((middle - point) * self.center_smoothness)
+        self.translation = self.inverse((middle - point) * center_smoothness)
 
     def translate(self, delta: Vector):
         """Translate the transformation by the vector delta delta."""

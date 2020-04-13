@@ -264,12 +264,13 @@ class Canvas(QWidget):
             return
 
         # TODO: add parsing exceptions
-        self.graph = (
-            DrawableGraph.from_string(open(path, "r").read(), DrawableNode)
-            or self.graph
-        )
+        if new_graph := DrawableGraph.from_string(open(path, "r").read(), DrawableNode):
+            self.graph = new_graph
 
-        # TODO: center on the newly imported node
+        self.transformation.center(
+            Vector.average([n.get_position() for n in self.graph.get_nodes()]),
+            center_smoothness=1,
+        )
 
     def export_graph(self):
         """Prompt a graph (from file) export."""
