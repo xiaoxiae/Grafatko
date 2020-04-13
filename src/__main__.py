@@ -176,6 +176,7 @@ class Canvas(QWidget):
 
     def mousePressEvent(self, event):
         """Called when a left click is registered."""
+        self.setFocus()  # done so that key strokes register
         key = self.mouse.pressed_event(event)
 
         # get the node at the position where we clicked
