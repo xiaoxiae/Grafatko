@@ -198,7 +198,7 @@ class Canvas(QWidget):
 
             # else de-select when shift is not pressed
             elif not self.keyboard.shift.pressed():
-                self.deselect_all()
+                self.graph.deselect_all()
 
         elif key is self.mouse.right:
             # if there isn't a node at the position, create a new one
@@ -243,15 +243,10 @@ class Canvas(QWidget):
         """Select the given node."""
         # only select one when shift is not pressed
         if not self.keyboard.shift.pressed():
-            self.deselect_all()
+            self.graph.deselect_all()
 
         # else just select the node
         node.select()
-
-    def deselect_all(self):
-        """Deselect all nodes."""
-        for node in self.graph.get_selected():
-            node.deselect()
 
     def get_graph(self):
         """Get the current graph."""

@@ -517,8 +517,18 @@ class DrawableGraph(Drawable, Graph):
 
         return start, end
 
-    def node_at_position(self, position: Vector) -> Union[None, DrawableNode]:
-        """Returns a Node if it is at the given position, or None."""
+    def select_all(self):
+        """Select all nodes."""
+        for node in self.get_nodes():
+            node.select()
+
+    def deselect_all(self):
+        """Deselect all nodes."""
+        for node in self.get_nodes():
+            node.deselect()
+
+    def node_at_position(self, position: Vector) -> Optional[DrawableNode]:
+        """Returns a Node if there is one at the given position, else None."""
         for node in self.get_nodes():
             if position.distance(node.get_position()) <= 1:
                 return node
