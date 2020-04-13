@@ -390,7 +390,9 @@ class DrawableGraph(Drawable, Graph):
         # first, draw all vertices
         for node in self.get_nodes():
             for adjacent in node.get_adjacent():
-                self.__draw_vertex(painter, palette, node, adjacent)
+                # don't draw both ways if the graph is not oriented
+                if self.get_directed() or id(node) < id(adjacent):
+                    self.__draw_vertex(painter, palette, node, adjacent)
 
         # then, draw all nodes
         for node in self.get_nodes():
@@ -480,7 +482,11 @@ class DrawableGraph(Drawable, Graph):
             mid = Vector.average(self.__get_vertex_position(n1, n2))
 
         # scale it down by text_scale before returning it
-        size = Vector(r.width(), r.height()) * self.text_scale
+        # if width is smaller then height, set it to height
+        height = r.height()
+        width = r.width() if r.width() >= height else height
+
+        size = Vector(width, height) * self.text_scale
         return QRectF(*(mid - size / 2), *size)
 
     def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
