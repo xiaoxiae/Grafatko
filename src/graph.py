@@ -138,6 +138,29 @@ class Graph:
         """Adds a new node to the graph."""
         self.nodes.append(node)
 
+    def reorient(self):
+        """Change the orientation of all vertices."""
+        # for each pair of nodes
+        for i, n1 in enumerate(self.get_nodes()):
+            for n2 in self.get_nodes()[i:]:
+                # change the direction, if there is only one
+                if bool(self.is_vertex(n1, n2)) != bool(self.is_vertex(n2, n1)):  # xor
+                    self.toggle_vertex(n1, n2)
+                    self.toggle_vertex(n2, n1)
+
+    def complement(self):
+        """Complement the graph."""
+        # for each pair of nodes
+        for i, n1 in enumerate(self.get_nodes()):
+            for n2 in self.get_nodes()[i:]:
+                self.toggle_vertex(n1, n2)
+
+                # also toggle the other way, if it's directed
+                # node that I didn't deliberately put 'and n1 is not n2' here, since
+                # they're special and we usually don't want them
+                if self.get_directed():
+                    self.toggle_vertex(n2, n1)
+
     @recalculate_components
     def remove_node(self, n: Node):
         """Removes the node from the graph."""
@@ -153,7 +176,7 @@ class Graph:
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (ex.:
         if the graph is not directed and the node wants to point to itself)."""
-        # special case for label
+        # special case for a loop
         if n1 is n2 and not self.directed:
             return
 
@@ -169,7 +192,7 @@ class Graph:
         return n2 in n1.adjacent
 
     def toggle_vertex(self, n1: Node, n2: Node):
-        """Toggles a connection between to vertexes."""
+        """Toggles a connection between two nodes."""
         if self.is_vertex(n1, n2):
             self.remove_vertex(n1, n2)
         else:

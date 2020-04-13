@@ -436,8 +436,18 @@ class GraphVisualizer(QMainWindow):
 
         ### Graph actions
         layout.addWidget(QLabel(self, text="Actions"), 0, 2)
-        layout.addWidget(QPushButton("complement", self), 1, 2)
-        layout.addWidget(QPushButton("reorient", self), 2, 2)
+
+        layout.addWidget(
+            QPushButton("complement", self, pressed=self.canvas.get_graph().complement),
+            1,
+            2,
+        )
+
+        layout.addWidget(
+            QPushButton("reorient", self, pressed=self.canvas.get_graph().reorient),
+            2,
+            2,
+        )
 
         # for inputting stuff to the graph
         layout.addWidget(QLineEdit(self), 3, 0, 1, -1)
