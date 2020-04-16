@@ -325,19 +325,22 @@ class GraphVisualizer(QMainWindow):
         ## Top menu bar
         self.menubar = self.menuBar()
 
+        # menu bar separator
+        self.sep = QAction()
+        self.sep.setSeparator(True)
+
+        # file menu
         self.file_menu = self.menubar.addMenu("&File")
-
-        self.file_menu.addAction(
-            QAction("&Import", self, triggered=lambda: self.canvas.import_graph())
+        self.file_menu.addActions(
+            [
+                QAction("&Import", self, triggered=lambda: self.canvas.import_graph()),
+                QAction("&Export", self, triggered=lambda: self.canvas.export_graph()),
+                self.sep,
+                QAction("&Quit", self, triggered=exit),
+            ]
         )
 
-        self.file_menu.addAction(
-            QAction("&Export", self, triggered=lambda: self.canvas.export_graph())
-        )
-
-        self.file_menu.addSeparator()
-        self.file_menu.addAction(QAction("&Quit", self, triggered=exit))
-
+        # preference menu
         self.preferences_menu = self.menubar.addMenu("&Preferences")
         self.preferences_menu.addAction(
             QAction(
@@ -351,33 +354,30 @@ class GraphVisualizer(QMainWindow):
             )
         )
 
+        # help menu
         self.help_menu = self.menubar.addMenu("&Help")
-        self.help_menu.addAction(
-            QAction(
-                "&Manual",
-                self,
-                triggered=lambda: QMessageBox.information(self, "Manual", "..."),
-            )
-        )
-
-        self.help_menu.addAction(
-            QAction(
-                "&About",
-                self,
-                triggered=lambda: QMessageBox.information(self, "About", "..."),
-            )
-        )
-
-        self.help_menu.addAction(
-            QAction(
-                "&Source Code",
-                self,
-                triggered=partial(
-                    # TODO: make non-blocking
-                    webbrowser.open,
-                    "https://github.com/xiaoxiae/GraphVisualizer",
+        self.help_menu.addActions(
+            [
+                QAction(
+                    "&Manual",
+                    self,
+                    triggered=lambda: QMessageBox.information(self, "Manual", "..."),
                 ),
-            )
+                QAction(
+                    "&About",
+                    self,
+                    triggered=lambda: QMessageBox.information(self, "About", "..."),
+                ),
+                QAction(
+                    "&Source Code",
+                    self,
+                    triggered=partial(
+                        # TODO: make non-blocking
+                        webbrowser.open,
+                        "https://github.com/xiaoxiae/GraphVisualizer",
+                    ),
+                ),
+            ]
         )
 
         ## Dock
@@ -387,75 +387,47 @@ class GraphVisualizer(QMainWindow):
         self.dock_menu.setAllowedAreas(Qt.BottomDockWidgetArea)  # float bottom
         self.dock_menu.setFeatures(QDockWidget.DockWidgetFloatable)  # hide close button
 
-        self.dock_widget = QWidget()
         layout = QGridLayout()
 
-        ### Graph options
-        layout.addWidget(QLabel(self, text="Graph"), 0, 0)
-
-        layout.addWidget(
-            QCheckBox(
+        widgets = {
+            (0, 0): QLabel(self, text="Graph"),
+            (1, 0): QCheckBox(
                 "directed",
                 self,
                 toggled=lambda value: self.canvas.get_graph().set_directed(value),
             ),
-            1,
-            0,
-        )
-
-        layout.addWidget(
-            QCheckBox(
+            (2, 0): QCheckBox(
                 "weighted",
                 self,
                 toggled=lambda value: self.canvas.get_graph().set_weighted(value),
             ),
-            2,
-            0,
-        )
-        layout.addWidget(QCheckBox("multi", self), 3, 0)
-
-        ### Visual options
-        layout.addWidget(QLabel(self, text="Visual"), 0, 1)
-
-        layout.addWidget(
-            QCheckBox(
+            (3, 0): QCheckBox("multi", self),
+            (0, 1): QLabel(self, text="Visual"),
+            (1, 1): QCheckBox(
                 "labels",
                 self,
                 toggled=lambda value: self.canvas.get_graph().set_show_labels(value),
             ),
-            1,
-            1,
-        )
-
-        layout.addWidget(
-            QCheckBox(
+            (2, 1): QCheckBox(
                 "gravity",
                 self,
                 toggled=lambda value: self.canvas.set_forces(value),
                 checked=True,
             ),
-            2,
-            1,
-        )
+            (0, 2): QLabel(self, text="Actions"),
+            (1, 2): QPushButton(
+                "complement", self, pressed=self.canvas.get_graph().complement
+            ),
+            (2, 2): QPushButton(
+                "reorient", self, pressed=self.canvas.get_graph().reorient
+            ),
+            (3, 0, 1, -1): QLineEdit(self),
+        }
 
-        ### Graph actions
-        layout.addWidget(QLabel(self, text="Actions"), 0, 2)
+        for k, v in widgets.items():
+            layout.addWidget(v, *k)
 
-        layout.addWidget(
-            QPushButton("complement", self, pressed=self.canvas.get_graph().complement),
-            1,
-            2,
-        )
-
-        layout.addWidget(
-            QPushButton("reorient", self, pressed=self.canvas.get_graph().reorient),
-            2,
-            2,
-        )
-
-        # for inputting stuff to the graph
-        layout.addWidget(QLineEdit(self), 3, 0, 1, -1)
-
+        self.dock_widget = QWidget()
         self.dock_widget.setLayout(layout)
 
         ### Set the dock menu as the dock widget for the app

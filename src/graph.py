@@ -401,7 +401,6 @@ class DrawableNode(Drawable, Node):
 
 
 class DrawableGraph(Drawable, Graph):
-
     font: QFont = None  # the font that is used to draw the weights
 
     # possible TODO: compute this programatically
