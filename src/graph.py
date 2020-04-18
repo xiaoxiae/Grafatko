@@ -388,6 +388,10 @@ class DrawableNode(Drawable, Node):
             if not self.is_dragged():
                 self.position += force
 
+    def clear_forces(self):
+        """Clear all of the forces from the node."""
+        self.forces = []
+
     def draw(self, painter: QPainter, palette: QPalette, draw_label=False):
         """Draw the node at its current position with radius 1."""
         painter.setBrush(self.brush(palette))
@@ -412,6 +416,11 @@ class DrawableGraph(Drawable, Graph):
 
     show_labels: bool = False  # whether or not to show the labels of nodes
 
+    # a dictionary for calculating the distance from a root node
+    # used in displaying the graph as a tree
+    distance_from_root = {}
+    root = None
+
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
         self.font = painter.font()
@@ -435,6 +444,51 @@ class DrawableGraph(Drawable, Graph):
         """Whether to show the node labels or not."""
         self.show_labels = value
 
+    def recalculate_distance_to_root(function):
+        """A decorator for recalculating the distance from the root node to the rest of
+        the graph."""
+
+        def wrapper(self, *args, **kwargs):
+            # first add/remove vertex/node/whatever
+            function(self, *args, **kwargs)
+
+            self.distance_from_root = {}
+            print("wow")
+
+            # don't do anything if the root
+            if self.get_root() is None:
+                return
+
+            # else run the BFS to calculate the distances
+            queue = [(self.root, 1)]
+            closed = set()
+            self.distance_from_root[0] = [self.root]
+
+            while len(queue) != 0:
+                current, distance = queue.pop(0)
+
+                for adjacent in current.get_adjacent():
+                    if adjacent not in closed:
+                        if distance not in self.distance_from_root:
+                            self.distance_from_root[distance] = []
+
+                        queue.append((adjacent, distance + 1))
+                        self.distance_from_root[distance].append(adjacent)
+
+                closed.add(current)
+
+        return wrapper
+
+    @recalculate_distance_to_root
+    def set_root(self, node: DrawableNode):
+        """Set a node as the root of the tree."""
+        self.root = node
+
+    def get_root(self) -> Optional[DrawableNode]:
+        """Return the root of the tree (or None if there is none)."""
+        return self.root
+
+    @recalculate_distance_to_root
     def add_vertex(self, n1: Node, n2: Node, *args, **kwargs):
         """A wrapper around the normal Graph() add_vertex function that also adds the
         pen function with which to draw the vertex."""
@@ -444,6 +498,22 @@ class DrawableGraph(Drawable, Graph):
             n2.adjacent_pens[n1] = Pen(DEFAULT, Qt.SolidLine)
 
         super().add_vertex(n1, n2, *args, **kwargs)
+
+    @recalculate_distance_to_root
+    def remove_vertex(self, *args, **kwargs):
+        super().remove_vertex(*args, **kwargs)
+
+    @recalculate_distance_to_root
+    def add_node(self, *args, **kwargs):
+        super().add_node(*args, **kwargs)
+
+    @recalculate_distance_to_root
+    def remove_node(self, node, **kwargs):
+        # check, if we're not removing the root; if we are, act accordingly
+        if node is self.root:
+            self.set_root(None)
+
+        super().remove_node(node, **kwargs)
 
     def __draw_vertex(
         self, painter: QPainter, palette: QPalette, n1: DrawableNode, n2: DrawableNode
@@ -573,3 +643,7 @@ class DrawableGraph(Drawable, Graph):
         for node in self.get_nodes():
             if position.distance(node.get_position()) <= 1:
                 return node
+
+    def get_distance_from_root(self) -> Dict[int, List[DrawableNode]]:
+        """Return the resulting dictionary of a BFS ran from the root node."""
+        return self.distance_from_root

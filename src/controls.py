@@ -39,10 +39,15 @@ class Keyboard:
 
         # TODO: add custom config (imported from a file)
 
-        # dynamically create the properties
+        # dynamically create properties for special keys...
         self.__class__.space = property(lambda self: self.keys[Qt.Key_Space])
         self.__class__.delete = property(lambda self: self.keys[Qt.Key_Delete])
         self.__class__.shift = property(lambda self: self.keys[Qt.Key_Shift])
+
+        # ... and for letters
+        for i in range(65, 91):
+            self.keys[i] = Pressable()
+            setattr(Keyboard, chr(i).lower(), self.keys[i])
 
     def __set_key(self, key: int, value: bool) -> Optional[Pressable]:
         """Set (attempt to) key in the dictionary to a given value, returning the object

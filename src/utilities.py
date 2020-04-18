@@ -3,14 +3,15 @@
 from __future__ import annotations
 from typing import *
 from math import sqrt, sin, cos
-
 from dataclasses import *
+
+Number = Union[int, float, complex]
 
 
 class Vector:
     """A Python implementation of a vector class and some of its operations."""
 
-    values = None
+    values: List[Number] = None
 
     def __init__(self, *args):
         self.values = list(args)
@@ -29,22 +30,22 @@ class Vector:
         """Defines the hash of the vector as a hash of a tuple with its components."""
         return hash(tuple(self))
 
-    def __eq__(self, other):
+    def __eq__(self, other: Vector):
         """Defines vector equality as the equality of all of its components."""
         return self.values == other.values
 
-    def __setitem__(self, i, value):
+    def __setitem__(self, i: int, value: Number):
         """Sets the i-th vector component to the specified value."""
         self.values[i] = value
 
-    def __getitem__(self, i):
+    def __getitem__(self, i: int):
         """Either returns a new vector when sliced, or the i-th vector component."""
         if type(i) == slice:
             return Vector(*self.values[i])
         else:
             return self.values[i]
 
-    def __delitem__(self, i):
+    def __delitem__(self, i: int):
         """Deletes the i-th component of the vector."""
         del self.values[i]
 
@@ -52,38 +53,36 @@ class Vector:
         """Defines vector negation as the negation of all of its components."""
         return Vector(*iter(-component for component in self))
 
-    def __add__(self, other):
+    def __add__(self, other: Vector):
         """Defines vector addition as the addition of each of their components."""
         return Vector(*iter(u + v for u, v in zip(self, other)))
 
     __iadd__ = __add__
 
-    def __sub__(self, other):
+    def __sub__(self, other: Vector):
         """Defines vector subtraction as the subtraction of each of its components."""
         return Vector(*iter(u - v for u, v in zip(self, other)))
 
     __isub__ = __sub__
 
-    def __mul__(self, other):
+    def __mul__(self, other: Vector):
         """Defines scalar and dot multiplication of a vector."""
-        if type(other) == int or type(other) == float:
-            # scalar multiplication
+        if type(other) in get_args(Number):
             return Vector(*iter(component * other for component in self))
         else:
-            # dot multiplication
             return sum(u * v for u, v in zip(self, other))
 
     __rmul__ = __imul__ = __mul__
 
-    def __truediv__(self, other):
+    def __truediv__(self, other: Number):
         """Defines vector division by a scalar."""
         return Vector(*iter(component / other for component in self))
 
-    def __floordiv__(self, other):
+    def __floordiv__(self, other: Number):
         """Defines floor vector division by a scalar."""
         return Vector(*iter(component // other for component in self))
 
-    def __matmul__(self, other):
+    def __matmul__(self, other: Vector):
         """Defines cross multiplication of a vector."""
         return Vector(
             self[1] * other[2] - self[2] * other[1],
@@ -93,7 +92,7 @@ class Vector:
 
     __imatmul__ = __matmul__
 
-    def __mod__(self, other):
+    def __mod__(self, other: Number):
         """Defines vector mod as the mod of its components."""
         return Vector(*iter(component % other for component in self))
 
@@ -106,9 +105,9 @@ class Vector:
         if point is None:
             point = Vector(0, 0)
 
-        return self.__rotated(self - point, angle) + point
+        return self.__rotated(angle, self - point) + point
 
-    def __rotated(self, vector: Vector, angle: float):
+    def __rotated(self, angle: float, vector: Vector):
         """Returns a vector rotated by an angle (in radians)."""
         return Vector(
             vector[0] * cos(angle) - vector[1] * sin(angle),
@@ -127,7 +126,7 @@ class Vector:
         """Returns the distance of two Vectors in space."""
         return sqrt(sum(map(lambda x: sum(x) ** 2, zip(self, -other))))
 
-    def repeat(self, n):
+    def repeat(self, n: int):
         """Performs sequence repetition on the vector (n times)."""
         return Vector(*self.values * n)
 

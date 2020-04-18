@@ -27,9 +27,11 @@ class Canvas(QWidget):
     # whether the forces are enabled/disabled
     forces: bool = True
 
-    # _ because self.repulsion gets self as the first argument
+    # _ because the lambda gets self as the first argument
     repulsion = lambda _, distance: (1 / distance) ** 2
-    attraction = lambda _, distance: -(distance - 8) / 10
+    attraction = lambda _, distance: -(distance - 6) / 3
+    tree = lambda _, v: v * 0.3
+    gravity = lambda _: Vector(0, 0.1)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -52,6 +54,26 @@ class Canvas(QWidget):
 
     def update(self, *args):
         """A function that gets periodically called to update the canvas."""
+        # if the graph is rooted and we want to do forces
+        if root := self.graph.get_root() is not None and self.forces:
+            distances = self.graph.get_distance_from_root()
+
+            # calculate the forces within each BFS layer from root
+            for layer in distances:
+                if len(distances[layer]) < 1:
+                    continue
+
+                pivot = Vector.average([n.get_position() for n in distances[layer]])
+
+                for node in distances[layer]:
+                    vector = Vector(0, pivot[1] - node.get_position()[1])
+                    node.add_force(self.tree(vector))
+
+            # add gravity
+            for node in self.graph.get_nodes():
+                if node is not root and self.graph.weakly_connected(node, root):
+                    node.add_force(self.gravity())
+
         # only move the nodes when forces are enabled
         if self.forces:
             for i, n1 in enumerate(self.graph.get_nodes()):
@@ -85,7 +107,11 @@ class Canvas(QWidget):
                         n1.add_force(-uv * fa)
                         n2.add_force(uv * fa)
 
-                n1.evaluate_forces()
+                # special
+                if n1 is root:
+                    n1.clear_forces()
+                else:
+                    n1.evaluate_forces()
 
         # if space is being pressed, center around the currently selected nodes
         if self.keyboard.space.pressed() and len(ns := self.graph.get_selected()) != 0:
@@ -137,6 +163,13 @@ class Canvas(QWidget):
     def keyPressEvent(self, event):
         """Called when a key press is registered."""
         key = self.keyboard.pressed_event(event)
+
+        # toggle graph root on r press
+        if key is self.keyboard.r:
+            if self.graph.get_root() is not None:
+                self.graph.set_root(None)
+            elif len(selected := self.graph.get_selected()) == 1:
+                self.graph.set_root(selected[0])
 
         # delete selected nodes on del press
         if key is self.keyboard.delete:
