@@ -7,6 +7,11 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 
+def RGB(r: int, g: int, b: int):
+    """The color from RGB."""
+    return lambda palette: QColor.fromRgb(r, g, b)
+
+
 def DEFAULT(palette: QPalette) -> QColor:
     """The default color, taken from the color of the text."""
     return palette.text().color()
@@ -18,7 +23,7 @@ def BACKGROUND(palette: QPalette) -> QColor:
 
 
 def SELECTED(palette: QPalette) -> QColor:
-    """The default color, taken from the color of the text."""
+    """The default color of selected nodes."""
     return palette.alternateBase().color()
 
 

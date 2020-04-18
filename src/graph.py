@@ -453,7 +453,6 @@ class DrawableGraph(Drawable, Graph):
             function(self, *args, **kwargs)
 
             self.distance_from_root = {}
-            print("wow")
 
             # don't do anything if the root
             if self.get_root() is None:
