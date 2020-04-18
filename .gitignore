@@ -9,3 +9,6 @@ resources/
 build/
 dist/
 *info
+
+# Make (contains login)
+makefile
