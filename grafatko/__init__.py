@@ -33,7 +33,7 @@ class Canvas(QWidget):
     tree = lambda _, v: v * 0.3
     gravity = lambda _: Vector(0, 0.1)
 
-    def __init__(self, parent=None):
+    def __init__(self, line_edit, parent=None):
         super().__init__(parent)
         # TODO: add a mouse select thingy for selecting multiple nodes
 
@@ -48,6 +48,9 @@ class Canvas(QWidget):
         self.setMouseTracking(True)
 
         self.keyboard = Keyboard()
+
+        self.line_edit = line_edit
+        self.line_edit.textChanged.connect(self.line_edit_changed)
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -118,6 +121,10 @@ class Canvas(QWidget):
             self.transformation.center(Vector.average([n.get_position() for n in ns]))
 
         super().update(*args)
+
+    def line_edit_changed(self, text):
+        """Called when the line edit associated with the Canvas changed."""
+        # TODO
 
     def paintEvent(self, event):
         """Paints the board."""
@@ -348,7 +355,9 @@ class GraphVisualizer(QMainWindow):
 
         # Widgets
         ## Canvas (main widget)
-        self.canvas = Canvas(parent=self)
+        self.line_edit = QLineEdit(self)
+
+        self.canvas = Canvas(self.line_edit, parent=self)
         self.canvas.setMinimumSize(100, 200)  # reasonable minimum size
         self.setCentralWidget(self.canvas)
 
@@ -454,7 +463,7 @@ class GraphVisualizer(QMainWindow):
             (2, 2): QPushButton(
                 "reorient", self, pressed=self.canvas.get_graph().reorient
             ),
-            (3, 0, 1, -1): QLineEdit(self),
+            (3, 0, 1, -1): self.line_edit,
         }
 
         for k, v in widgets.items():
@@ -476,6 +485,7 @@ def run():
     app = QApplication(sys.argv)
     ex = GraphVisualizer()
     sys.exit(app.exec_())
+
 
 if __name__ == "__main__":
     run()

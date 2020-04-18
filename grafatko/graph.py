@@ -388,8 +388,34 @@ class DrawableNode(Drawable, Node):
         painter.drawEllipse(QPointF(*self.position), 1, 1)
 
         # possibly draw the label of the node
-        if draw_label:
-            pass
+        if draw_label and self.get_label() is not None:
+            label = self.get_label()
+            mid = self.get_position()
+
+            # get the rectangle that surrounds the label
+            r = QFontMetrics(painter.font()).boundingRect(label)
+            scale = 1.9 / Vector(r.width(), r.height()).magnitude()
+
+            # draw it on the screen
+            size = Vector(r.width(), r.height()) * scale
+            rect = QRectF(*(mid - size / 2), *size)
+
+            painter.save()
+
+            painter.setBrush(Brush(BACKGROUND)(palette))
+            painter.setPen(Pen(BACKGROUND)(palette))
+
+            # translate to top left and scale down to draw the actual text
+            painter.translate(rect.topLeft())
+            painter.scale(scale, scale)
+
+            painter.drawText(
+                QRectF(0, 0, rect.width() / scale, rect.height() / scale),
+                Qt.AlignCenter,
+                label,
+            )
+
+            painter.restore()
 
 
 class DrawableGraph(Drawable, Graph):
@@ -549,7 +575,6 @@ class DrawableGraph(Drawable, Graph):
             painter.translate(rect.topLeft())
             painter.scale(scale, scale)
 
-            # TODO: maybe refactor this
             painter.drawText(
                 QRectF(0, 0, rect.width() / scale, rect.height() / scale),
                 Qt.AlignCenter,
