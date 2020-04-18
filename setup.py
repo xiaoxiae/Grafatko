@@ -5,7 +5,7 @@ script_location = path.abspath(path.dirname(__file__))
 
 setup(
     # information about the package
-    name="Grafatko",
+    name="grafatko",
     version="0.1",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
@@ -21,9 +21,10 @@ setup(
     ],
 
     # where to look for files
-    packages=find_packages("src"),
-    package_dir={"": "src"},
+    packages=["grafatko"],
     data_files=[("", ["LICENSE.txt", "README.md"])],
+
+    entry_points={'console_scripts': ['grafatko=grafatko.__init__:run']},
 
     # requirements
     install_requires=["pyqt5 >= 5.14.2", "qtmodern >= 0.2.0"],

@@ -19,5 +19,5 @@ The syntax is as follows, with the values in square brackets being optional:
 - `[direction]` is used in directed graphs, and could be either `->` or `<-`
 - `[weight]` is the weight of the vertex
 
-Examples of valid graphs can be found in the `examples/` folder. 
+Examples of valid graphs can be found in the `examples/` folder.
 Note that as long as the file is _not binary_, the extension doesn't matter.

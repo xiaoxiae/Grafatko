@@ -13,9 +13,9 @@ from math import radians
 import argparse
 import webbrowser
 
-from graph import *
-from utilities import *
-from controls import *
+from grafatko.graph import *
+from grafatko.utilities import *
+from grafatko.controls import *
 
 
 class Canvas(QWidget):
@@ -471,6 +471,11 @@ class GraphVisualizer(QMainWindow):
         self.show()
 
 
-app = QApplication(sys.argv)
-ex = GraphVisualizer()
-sys.exit(app.exec_())
+def run():
+    """An entry point to the GUI."""
+    app = QApplication(sys.argv)
+    ex = GraphVisualizer()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    run()

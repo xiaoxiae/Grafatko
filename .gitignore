@@ -8,4 +8,4 @@ resources/
 # PyPI files
 build/
 dist/
-*.info
+*info

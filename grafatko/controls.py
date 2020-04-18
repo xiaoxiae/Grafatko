@@ -5,7 +5,7 @@ from typing import *
 
 from PyQt5.QtCore import Qt
 
-from utilities import *
+from grafatko.utilities import *
 
 
 @dataclass

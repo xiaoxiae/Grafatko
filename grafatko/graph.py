@@ -13,8 +13,8 @@ from collections import defaultdict
 from math import sqrt, cos, sin, radians, pi
 from abc import *
 
-from utilities import *
-from colors import *
+from grafatko.utilities import *
+from grafatko.colors import *
 
 
 @dataclass(eq=False)
