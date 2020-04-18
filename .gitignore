@@ -1,6 +1,3 @@
-# PyCharm configuration files
-.idea/
-
 # Python cache files
 __pycache__/
 .mypy_cache/
@@ -8,3 +5,7 @@ __pycache__/
 # Notes, other project files
 resources/
 
+# PyPI files
+build/
+dist/
+*.info
