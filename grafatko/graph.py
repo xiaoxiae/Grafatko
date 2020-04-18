@@ -352,12 +352,16 @@ class DrawableNode(Drawable, Node):
     def select(self):
         """Mark the node as selected."""
         self.brush.color = SELECTED
-        self.selected = True
+        self.__set_selected(True)
 
     def deselect(self):
         """Mark the node as not selected."""
         self.brush.color = DEFAULT
-        self.selected = False
+        self.__set_selected(False)
+
+    def __set_selected(self, value: bool):
+        """Set the selected status of the node."""
+        self.selected = value
 
     def is_selected(self) -> bool:
         """Return, whether the node is selected or not."""

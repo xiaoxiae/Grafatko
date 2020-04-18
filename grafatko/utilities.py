@@ -40,14 +40,7 @@ class Vector:
 
     def __getitem__(self, i: int):
         """Either returns a new vector when sliced, or the i-th vector component."""
-        if type(i) == slice:
-            return Vector(*self.values[i])
-        else:
-            return self.values[i]
-
-    def __delitem__(self, i: int):
-        """Deletes the i-th component of the vector."""
-        del self.values[i]
+        return self.values[i]
 
     def __neg__(self):
         """Defines vector negation as the negation of all of its components."""
@@ -92,10 +85,6 @@ class Vector:
 
     __imatmul__ = __matmul__
 
-    def __mod__(self, other: Number):
-        """Defines vector mod as the mod of its components."""
-        return Vector(*iter(component % other for component in self))
-
     def magnitude(self):
         """Returns the magnitude of the vector."""
         return sqrt(sum(component ** 2 for component in self))
@@ -118,10 +107,6 @@ class Vector:
         """Returns a unit vector with the same direction as this vector."""
         return self / self.magnitude()
 
-    def abs(self):
-        """Returns a vector with absolute values of the components of this vector."""
-        return Vector(*iter(abs(component) for component in self))
-
     def distance(self, other: Vector):
         """Returns the distance of two Vectors in space."""
         return sqrt(sum(map(lambda x: sum(x) ** 2, zip(self, -other))))
@@ -129,14 +114,6 @@ class Vector:
     def repeat(self, n: int):
         """Performs sequence repetition on the vector (n times)."""
         return Vector(*self.values * n)
-
-    def project(self, p: Number, q: Number) -> Vector:
-        """Project this vector (point) onto a line, given its slope and intercept.
-        Return the vector from the point to the line."""
-        v = Vector(self[0], self[1] - q)
-        s = Vector(1, p)
-
-        return (v * s) / (s * s) * s - v
 
     @classmethod
     def sum(cls, l: List[Vector]):
@@ -147,20 +124,6 @@ class Vector:
     def average(cls, l: List[Vector]):
         """Return the average of the given vectors."""
         return Vector.sum(l) / len(l)
-
-    @classmethod
-    def fit_line(cls, points: List[Vector]) -> Tuple[Vector, Vector]:
-        """Fit a line through a sequence of points, returning its slope and intercept."""
-        n = len(points)
-
-        sums = Vector(0, 0, 0, 0)
-        for x, y in points:
-            sums += Vector(x, y, x ** 2, x * y)
-
-        p = (n * sums[3] - sums[0] * sums[1]) / (n * sums[2] - sums[0] ** 2)
-        q = (sums[1] - p * sums[0]) / n
-
-        return p, q
 
 
 @dataclass
@@ -186,8 +149,9 @@ class Transformation:
         """The inverse of apply."""
         return point * self.scale + self.translation
 
-    def center(self, point: Vector, center_smoothness=0.3):
-        """Center the transformation on the given point."""
+    def center(self, point: Vector, center_smoothness: float = 0.3):
+        """Center the transformation on the given point. The closer to 1 the value of
+        center_smoothness, the faster the centering is."""
         middle = self.apply(Vector(self.canvas.width(), self.canvas.height()) / 2)
         self.translation = self.inverse((middle - point) * center_smoothness)
 

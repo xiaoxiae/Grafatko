@@ -124,7 +124,7 @@ class Canvas(QWidget):
 
     def line_edit_changed(self, text):
         """Called when the line edit associated with the Canvas changed."""
-        # TODO
+        pass
 
     def paintEvent(self, event):
         """Paints the board."""
@@ -416,7 +416,7 @@ class GraphVisualizer(QMainWindow):
                     triggered=partial(
                         # TODO: make non-blocking
                         webbrowser.open,
-                        "https://github.com/xiaoxiae/GraphVisualizer",
+                        "https://github.com/xiaoxiae/Grafatko",
                     ),
                 ),
             ]
