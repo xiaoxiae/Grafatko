@@ -130,6 +130,14 @@ class Vector:
         """Performs sequence repetition on the vector (n times)."""
         return Vector(*self.values * n)
 
+    def project(self, p: Number, q: Number) -> Vector:
+        """Project this vector (point) onto a line, given its slope and intercept.
+        Return the vector from the point to the line."""
+        v = Vector(self[0], self[1] - q)
+        s = Vector(1, p)
+
+        return (v * s) / (s * s) * s - v
+
     @classmethod
     def sum(cls, l: List[Vector]):
         """Return the sum of the given vectors."""
@@ -139,6 +147,20 @@ class Vector:
     def average(cls, l: List[Vector]):
         """Return the average of the given vectors."""
         return Vector.sum(l) / len(l)
+
+    @classmethod
+    def fit_line(cls, points: List[Vector]) -> Tuple[Vector, Vector]:
+        """Fit a line through a sequence of points, returning its slope and intercept."""
+        n = len(points)
+
+        sums = Vector(0, 0, 0, 0)
+        for x, y in points:
+            sums += Vector(x, y, x ** 2, x * y)
+
+        p = (n * sums[3] - sums[0] * sums[1]) / (n * sums[2] - sums[0] ** 2)
+        q = (sums[1] - p * sums[0]) / n
+
+        return p, q
 
 
 @dataclass

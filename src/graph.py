@@ -288,18 +288,6 @@ class Graph:
 
         return string
 
-    def to_asymptote(self) -> str:
-        # TODO possible export option
-        pass
-
-    def to_tikz(self) -> str:
-        # TODO possible export option
-        pass
-
-    def to_svg(self) -> str:
-        # TODO possible export option
-        pass
-
 
 class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
@@ -646,3 +634,24 @@ class DrawableGraph(Drawable, Graph):
     def get_distance_from_root(self) -> Dict[int, List[DrawableNode]]:
         """Return the resulting dictionary of a BFS ran from the root node."""
         return self.distance_from_root
+
+    def vertex_at_position(
+        self, position: Vector
+    ) -> Optional[Tuple[DrawableNode, DrawableNode]]:
+        """Returns a vertex if there is one at the given position, else None."""
+        for n1 in self.get_nodes():
+            for n2 in n1.get_adjacent():
+                if self.__get_weight_box(n1, n2).contains(*position):
+                    return (n1, n2)
+
+    def to_asymptote(self) -> str:
+        # TODO possible export option
+        pass
+
+    def to_tikz(self) -> str:
+        # TODO possible export option
+        pass
+
+    def to_svg(self) -> str:
+        # TODO possible export option
+        pass
