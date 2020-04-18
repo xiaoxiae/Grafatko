@@ -100,11 +100,13 @@ class Mouse:
 
     def get_position(self):
         """Get the current mouse position."""
-        return self.transformation.apply(self.position)
+        if self.position is not None:
+            return self.transformation.apply(self.position)
 
     def get_previous_position(self):
         """Get the previous mouse position."""
-        return self.transformation.apply(self.prev_position)
+        if self.prev_position is not None:
+            return self.transformation.apply(self.prev_position)
 
     def __set_button(
         self, button: int, position: Vector, value: bool
