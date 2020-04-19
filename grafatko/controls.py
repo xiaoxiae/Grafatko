@@ -1,8 +1,5 @@
 """A class for keeping track of information regarding the mouse and the keyboard."""
 
-from dataclasses import *
-from typing import *
-
 from PyQt5.QtCore import Qt
 
 from grafatko.utilities import *

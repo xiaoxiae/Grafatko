@@ -1,20 +1,14 @@
 """A wrapper for working with graphs that can be drawn."""
 
 from __future__ import annotations
-from dataclasses import dataclass, field
-from typing import *
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
-from PyQt5.QtWidgets import *
-
+from abc import *
 from ast import literal_eval
 from collections import defaultdict
-from math import sqrt, cos, sin, radians, pi
-from abc import *
+from math import radians, pi
 
-from grafatko.utilities import *
 from grafatko.colors import *
+from grafatko.utilities import *
 
 
 @dataclass(eq=False)

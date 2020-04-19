@@ -1,21 +1,14 @@
 import os
 import sys
+import webbrowser
+from functools import partial
+from random import random
 
-from PyQt5.QtCore import *
-from PyQt5.QtGui import *
 from PyQt5.QtWidgets import *
 from qtmodern import styles
 
-from typing import *
-from functools import partial
-from random import random
-from math import radians
-import argparse
-import webbrowser
-
-from grafatko.graph import *
-from grafatko.utilities import *
 from grafatko.controls import *
+from grafatko.graph import *
 
 
 class Canvas(QWidget):
