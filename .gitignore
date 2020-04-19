@@ -2,6 +2,9 @@
 __pycache__/
 .mypy_cache/
 
+# PyCharm
+.idea/
+
 # Notes, other project files
 resources/
 
