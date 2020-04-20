@@ -343,6 +343,15 @@ class Canvas(QWidget):
             # clean-up
             os.remove(path)
 
+    def run_algorithm(self):
+        """Select a file containing an algorithm and run it."""
+        path = QFileDialog.getOpenFileName()[0]
+
+        if path == "":
+            return
+
+        # TODO
+
 
 class GraphVisualizer(QMainWindow):
     def __init__(self):
@@ -425,6 +434,12 @@ class GraphVisualizer(QMainWindow):
                     ),
                 ),
             ]
+        )
+
+        # algorithm menu
+        self.help_menu = self.menubar.addMenu("&Algorithms")
+        self.help_menu.addActions(
+            [QAction("&Run", self, triggered=self.canvas.run_algorithm, ), ]
         )
 
         ## Dock
