@@ -7,28 +7,73 @@ from ast import literal_eval
 from collections import defaultdict
 from math import radians, pi
 
-from grafatko.colors import *
+from grafatko.color import *
 from grafatko.utilities import *
 
 
-@dataclass(eq=False)
 class Node:
-    """A class for working with of nodes in a graph."""
+    """A class for working with nodes of a graph."""
 
-    label: str = None
-    adjacent: Dict[Node, Union[int, float]] = field(default_factory=dict)
+    def __init__(self, label=None):
+        self.adjacent: Set[Vertex] = set()
+        self.label = label
 
-    def get_adjacent(self) -> Dict[Node, Union[int, float]]:
-        """Returns nodes adjacent to the node."""
-        return self.adjacent
-
-    def get_label(self) -> Optional[str]:
-        """Returns the label of the node (or None if has none)."""
+    def get_label(self):
+        """Return the label of the node."""
         return self.label
 
-    def set_label(self, label: Optional[str]):
-        """Sets the label of the node to the specified value."""
-        self.label = label
+    def get_adjacent_vertices(self) -> Set[Vertex]:
+        """Returns a set of vertices adjacent to this one."""
+        return self.adjacent
+
+    def get_adjacent_nodes(self) -> List[Node]:
+        """Returns a list of nodes adjacent to this one."""
+        return [v[1] for v in self.adjacent]
+
+    def is_adjacent_to(self, node: Node) -> bool:
+        """Return True if this node is adjacent to the specified node."""
+        return node in self.get_adjacent_nodes()
+
+    def _remove_adjacent_node(self, node: Node):
+        """Remove an adjacent node (if it's there). Package-private."""
+        self.adjacent = {v for v in self.adjacent if v[1] is not node}
+
+    def _add_adjacent(self, vertex: Vertex):
+        """Add an adjacent vertex. Package-private."""
+        self.adjacent.add(vertex)
+
+
+class Vertex:
+    """A class for representing a vertex."""
+
+    def __init__(self, node_from: Node, node_to: Node, weight=1):
+        self.node_from = node_from
+        self.node_to = node_to
+        self.weight = weight
+
+    def __setitem__(self, i: int, value: Node):
+        if i == 0:
+            self.node_from = value
+        elif i == 1:
+            self.node_to = value
+        else:
+            raise IndexError("Only indexes 0 and 1 are supported.")
+
+    def __getitem__(self, i: int):
+        if i == 0:
+            return self.node_from
+        elif i == 1:
+            return self.node_to
+        else:
+            raise IndexError("Only indexes 0 and 1 are supported.")
+
+    def get_weight(self) -> float:
+        """Return the weight of the vertex."""
+        return self.weight
+
+    def set_weight(self, value: float):
+        """Set the weight of the vertex."""
+        self.weight = value
 
 
 @dataclass
@@ -39,11 +84,15 @@ class Graph:
     weighted: bool = False
 
     nodes: List[Node] = field(default_factory=list)
+    vertices: List[Vertex] = field(default_factory=list)
 
     # a component array that gets recalculated on each destructive graph operation
     # takes O(n^2) to rebuild, but O(1) to check components, so it's better for us
-    # TODO: make rebuilding faster (I was too lazy before)
-    components: Dict[Node, int] = field(default_factory=defaultdict)
+    components: List[Set[Node]] = None
+
+    # to know which kind of vertices and nodes to create
+    vertex_class = Vertex
+    node_class = Node
 
     def recalculate_components(function):
         """A decorator for rebuilding the components of the graph."""
@@ -54,9 +103,9 @@ class Graph:
 
             self.components = []
 
-            for node in self.nodes:
+            for node in self.get_nodes():
                 # the current set of nodes that we know are reachable from one another
-                component = set([node] + list(node.get_adjacent()))
+                component = set([node] + node.get_adjacent_nodes())
 
                 i = 0
                 while i < len(self.components):
@@ -69,8 +118,8 @@ class Graph:
 
         return wrapper
 
-    def get_weakly_connected(self, *args: Sequence[Node]) -> List[Node]:
-        """Return a list of all nodes that are weakly connected to any node from the
+    def get_weakly_connected(self, *args: Sequence[Node]) -> Set[Node]:
+        """Return a set of all nodes that are weakly connected to any node from the
         given sequence."""
         nodes = set()
 
@@ -79,10 +128,10 @@ class Graph:
                 if node in component:
                     nodes |= component
 
-        return list(nodes)
+        return nodes
 
-    def weakly_connected(self, n1: Node, n2: Node):
-        """Return True if the nodes are weakly connected."""
+    def weakly_connected(self, n1: Node, n2: Node) -> bool:
+        """Return True if the nodes are weakly connected, else False."""
         for component in self.components:
             a = n1 in component
             b = n2 in component
@@ -92,44 +141,48 @@ class Graph:
             elif a or b:
                 return False
 
-    def get_directed(self) -> bool:
-        """Returns True if the graph is directed, else False."""
+    def is_directed(self) -> bool:
+        """Return True if the graph is directed, else False."""
         return self.directed
 
     def set_directed(self, directed: bool):
-        """Sets, whether the graph is directed or not."""
+        """Set, whether the graph is directed or not."""
         # if we're converting to undirected, make all current vertices go both ways
-        if not directed:
-            for node in self.nodes:
-                for neighbour in list(node.adjacent):
+        if self.is_directed():
+            for node in self.get_nodes():
+                for neighbour in node.get_adjacent_nodes():
                     if node is neighbour:
-                        # no loops allowed >:C
-                        self.remove_vertex(node, neighbour)
+                        self.remove_vertex(node, neighbour)  # no loops allowed >:C
                     else:
                         self.add_vertex(neighbour, node)
 
         self.directed = directed
 
-    def get_weighted(self) -> bool:
-        """Returns True if the graph is weighted and False otherwise."""
+    def is_weighted(self) -> bool:
+        """Return True if the graph is weighted and False otherwise."""
         return self.weighted
 
     def set_weighted(self, value: bool):
-        """Sets, whether the graph is weighted or not."""
+        """Set, whether the graph is weighted or not."""
         self.weighted = value
 
     def get_weight(self, n1: Node, n2: Node) -> Optional[Union[int, float]]:
-        """Returns the weight of the specified vertex (and None if they're not connected)."""
-        if self.is_vertex(n1, n2):
-            return self.nodes[self.nodes.index(n1)].adjacent[n2]
+        """Return the weight of the specified vertex (and None if they're not connected)."""
+        for vertex in self.get_vertices():
+            if n1 is vertex[0] and n2 is vertex[1]:
+                return vertex.get_weight()
 
     def get_nodes(self) -> List[Node]:
-        """Returns a list of nodes of the graph."""
+        """Return a list of nodes of the graph."""
         return self.nodes
+
+    def get_vertices(self) -> List[Vertex]:
+        """Return a list of vertices of the graph."""
+        return self.vertices
 
     @recalculate_components
     def add_node(self, node: Node):
-        """Adds a new node to the graph."""
+        """Add a new node to the graph."""
         self.nodes.append(node)
 
     def reorient(self):
@@ -138,7 +191,7 @@ class Graph:
         for i, n1 in enumerate(self.get_nodes()):
             for n2 in self.get_nodes()[i:]:
                 # change the direction, if there is only one
-                if bool(self.is_vertex(n1, n2)) != bool(self.is_vertex(n2, n1)):  # xor
+                if bool(n1.is_adjacent_to(n2)) != bool(n2.is_adjacent_to(n1)):  # xor
                     self.toggle_vertex(n1, n2)
                     self.toggle_vertex(n2, n1)
 
@@ -152,60 +205,76 @@ class Graph:
                 # also toggle the other way, if it's directed
                 # node that I didn't deliberately put 'and n1 is not n2' here, since
                 # they're special and we usually don't want them
-                if self.get_directed():
+                if self.is_directed():
                     self.toggle_vertex(n2, n1)
 
     @recalculate_components
-    def remove_node(self, n: Node):
+    def remove_node(self, node: Node):
         """Removes the node from the graph."""
-        self.nodes.remove(n)
+        # remove it from the list of nodes
+        self.nodes.remove(node)
 
-        # remove all vertices that point to it
-        for node in self.nodes:
-            if n in node.adjacent:
-                del node.adjacent[n]
+        # remove all vertices that contain it
+        i = 0
+        while i < len(self.vertices):
+            v = self.vertices[i]
+            if node is v[0] or node is v[1]:
+                del self.vertices[i]
+            else:
+                i += 1
+
+        # remove this node from all nodes' adjacent
+        for other in self.get_nodes():
+            other._remove_adjacent_node(node)
 
     @recalculate_components
-    def add_vertex(self, n1: Node, n2: Node, weight: Optional[Union[int, float]] = 1):
+    def add_vertex(self, n1: Node, n2: Node, weight: Optional[float] = 1):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
-        Only does so if the given vertex doesn't already exist and can be added (ex.:
-        if the graph is not directed and the node wants to point to itself)."""
-        # special case for a loop
-        if n1 is n2 and not self.directed:
+        Only does so if the given vertex doesn't already exist and can be added (if, for
+        example the graph is not directed and the node wants to point to itself)."""
+        # prevent loops in undirected graphs and duplication
+        if (n1 is n2 and not self.is_directed()) or n1.is_adjacent_to(n2):
             return
 
-        # from n1 to n2
-        n1.adjacent[n2] = weight
+        # create the object, adding it to vertices
+        vertex = self.vertex_class(n1, n2, weight)
+        self.vertices.append(vertex)
+        n1._add_adjacent(vertex)
 
-        # from n2 to n1
-        if not self.directed:
-            n2.adjacent[n1] = weight
-
-    def is_vertex(self, n1: Node, n2: Node) -> bool:
-        """Returns True if a vertex exists between the two nodes and False otherwise."""
-        return n2 in n1.adjacent
-
-    def toggle_vertex(self, n1: Node, n2: Node):
-        """Toggles a connection between two nodes."""
-        if self.is_vertex(n1, n2):
-            self.remove_vertex(n1, n2)
-        else:
-            self.add_vertex(n1, n2)
+        # add it one/both ways, depending on whether the graph is directed or not
+        if not self.is_directed():
+            vertex = self.vertex_class(n2, n1, weight)
+            self.vertices.append(vertex)
+            n2._add_adjacent(vertex)
 
     @recalculate_components
     def remove_vertex(self, n1: Node, n2: Node):
         """Removes a vertex from node n1 to node n2 (and vice versa, if it's not 
         directed). Only does so if the given vertex exists."""
-        # from n1 to n2
-        if n2 in n1.adjacent:
-            del n1.adjacent[n2]
+        # remove it one-way if the graph is directed and both if it's not
+        self.vertices = [
+            v
+            for v in self.vertices
+            if not (
+                (n1 is v[0] and n2 is v[1])
+                or (not self.is_directed() and n2 is v[0] and n1 is v[1])
+            )
+        ]
 
-        # from n2 to n1
-        if not self.directed and n1 in n2.adjacent:
-            del n2.adjacent[n1]
+        # see above comment
+        n1._remove_adjacent_node(n2)
+        if not self.is_directed():
+            n2._remove_adjacent_node(n1)
+
+    def toggle_vertex(self, n1: Node, n2: Node):
+        """Toggles a connection between two nodes."""
+        if n1.is_adjacent_to(n2):
+            self.remove_vertex(n1, n2)
+        else:
+            self.add_vertex(n1, n2)
 
     @classmethod
-    def from_string(cls, string: str, node_cls: Node = Node) -> type(cls):
+    def from_string(cls, string: str) -> type(cls):
         """Generates the graph from a given string."""
         graph = None
         node_dictionary = {}
@@ -233,7 +302,7 @@ class Graph:
             for name in node_names:
                 if name not in node_dictionary:
                     # add it to graph with default values
-                    node_dictionary[name] = node_cls(label=name)
+                    node_dictionary[name] = cls.node_class(label=name)
                     graph.add_node(node_dictionary[name])
 
             # get the node objects from the names
@@ -252,39 +321,71 @@ class Graph:
         """Exports the graph, returning the string."""
         string = ""
 
-        # TODO: make the counter check, if some nodes don't already have the same label
         counter = 0  # for naming nodes that don't have a label
+        added = {}
 
-        # for each pair n1, n2 where n1_i < n2_i
-        for i, n1 in enumerate(self.nodes):
-            for n2 in self.nodes[i + 1 :]:
-                n1_label = n1.get_label() or str(counter := counter + 1)
-                n2_label = n2.get_label() or str(counter := counter + 1)
+        for i, n1 in enumerate(self.get_nodes()):
+            for n2 in self.get_nodes()[i + 1 :]:
+                # only add a vertex from an undirected graph once
+                if not self.is_directed() and id(n1) > id(n2):
+                    continue
+
+                # TODO make this the code less shitty
+                n1_label = n1.get_label()
+                if n1_label is None:
+                    if n1 not in added:
+                        added[n1] = str(counter := counter + 1)
+                    n1_label = added[n1]
+
+                n2_label = n2.get_label()
+                if n2_label is None:
+                    if n2 not in added:
+                        added[n2] = str(counter := counter + 1)
+                    n2_label = added[n2]
 
                 # TODO: simplify this code
-                if self.is_vertex(n1, n2):
+                print(":ahoj")
+                if n1.is_adjacent_to(n2):
+                    print(self.get_weight(n1, n2))
                     string += (
                         n1_label
-                        + (" -> " if self.directed else " ")
+                        + (" -> " if self.is_directed() else " ")
                         + n2_label
-                        + (str(self.get_weight(n1, n2)) if self.weighted else "")
+                        + (
+                            (" " + str(self.get_weight(n1, n2)))
+                            if self.is_weighted()
+                            else ""
+                        )
                         + "\n"
                     )
 
-                if self.is_vertex(n2, n1) and self.directed:
+                if n2.is_adjacent_to(n1) and self.is_directed():
                     string += (
                         n1_label
-                        + (" <- " if self.directed else " ")
+                        + (" <- " if self.is_directed() else " ")
                         + n2_label
-                        + (str(self.get_weight(n2, n1)) if self.weighted else "")
+                        + (
+                            (" " + str(self.get_weight(n2, n1)))
+                            if self.is_weighted()
+                            else ""
+                        )
                         + "\n"
                     )
 
-        return string
+            return string
 
 
 class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
+
+    def __init__(self, pen: Pen = None, brush: Brush = None):
+        if pen is None:
+            pen = Pen(DEFAULT, Qt.SolidLine)
+        if brush is None:
+            brush = Brush(DEFAULT, Qt.SolidPattern)
+
+        self.pen = pen
+        self.brush = brush
 
     @abstractmethod
     def draw(self, painter: QPainter, palette: QPalette, *args, **kwargs):
@@ -296,16 +397,10 @@ class DrawableNode(Drawable, Node):
     def __init__(self, position=Vector(0, 0), *args, **kwargs):
         self.position: Vector = position
 
-        super().__init__(*args, **kwargs)
+        Drawable.__init__(self)
+        Node.__init__(self, *args, **kwargs)
 
         self.forces: List[Vector] = []
-
-        # for drawing the node itself
-        self.pen = Pen(DEFAULT, Qt.SolidLine)
-        self.brush = Brush(DEFAULT, Qt.SolidPattern)
-
-        # for drawing the outgoing vertices
-        self.adjacent_pens: Dict[Node, Pen] = {}
 
         # for information about being dragged
         # at that point, no forces act on it
@@ -314,10 +409,6 @@ class DrawableNode(Drawable, Node):
 
         # whether it's currently selected or not
         self.selected = False
-
-    def get_adjacent(self) -> Dict[Node, Union[int, float]]:
-        """Returns nodes adjacent to the node."""
-        return self.adjacent
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
@@ -379,10 +470,10 @@ class DrawableNode(Drawable, Node):
         self.forces = []
 
     def draw(self, painter: QPainter, palette: QPalette, draw_label=False):
-        """Draw the node at its current position with radius 1."""
         painter.setBrush(self.brush(palette))
         painter.setPen(self.pen(palette))
 
+        # the radius is 1
         painter.drawEllipse(QPointF(*self.position), 1, 1)
 
         # possibly draw the label of the node
@@ -416,16 +507,136 @@ class DrawableNode(Drawable, Node):
             painter.restore()
 
 
-class DrawableGraph(Drawable, Graph):
+class DrawableVertex(Drawable, Vertex):
     font: QFont = None  # the font that is used to draw the weights
-
-    # possible TODO: compute this programatically
-    text_scale: Final[float] = 0.04  # the constant by which to scale down the font
 
     arrowhead_size: Final[float] = 0.5  # how big is the head triangle
     arrow_separation: Final[float] = pi / 7  # how far apart are two-way vertices
     loop_arrowhead_angle: Final[float] = -30.0  # an angle for the head in a loop
 
+    # possible TODO: compute this programatically
+    text_scale: Final[float] = 0.04  # the constant by which to scale down the font
+
+    def __init__(self, *args, **kwargs):
+        Drawable.__init__(self)
+        Vertex.__init__(self, *args, **kwargs)
+
+        self.brush = Brush.empty()
+
+    def draw(
+        self, painter: QPainter, palette: QPalette, directed: bool, weighted: bool
+    ):
+        """Also takes, whether the graph is directed or not."""
+        self.font = painter.font()
+
+        painter.setPen(self.pen(palette))
+        painter.setBrush(self.brush(palette))
+
+        # special case for a loop
+        if self[0] is self[1]:
+            # draw the ellipse that symbolizes a loop
+            center = self[0].get_position() - Vector(0.5, 1)
+            painter.drawEllipse(QPointF(*center), 0.5, 0.5)
+
+            # draw the head of the loop arrow
+            head_direction = Vector(0, 1).rotated(radians(self.loop_arrowhead_angle))
+            self.__draw_arrow_tip(center + Vector(0.5, 0), head_direction, painter)
+        else:
+            start, end = self.__get_position(directed)
+
+            # draw the line
+            painter.drawLine(QPointF(*start), QPointF(*end))
+
+            # draw the head of a directed arrow, which is an equilateral triangle
+            if directed:
+                self.__draw_arrow_tip(end, end - start, painter)
+
+        # draw the weight
+        if weighted:
+            # set the color to be the same as the vertex
+            color = self.pen.color(palette)
+            painter.setBrush(QBrush(color, Qt.SolidPattern))
+
+            painter.save()
+
+            # draw the bounding box
+            rect = self.__get_weight_box(directed)
+            painter.drawRect(rect)
+
+            scale = self.text_scale
+
+            # translate to top left and scale down to draw the actual text
+            painter.translate(rect.topLeft())
+            painter.scale(scale, scale)
+
+            painter.setPen(Pen(color=BACKGROUND)(palette))
+
+            painter.drawText(
+                QRectF(0, 0, rect.width() / scale, rect.height() / scale),
+                Qt.AlignCenter,
+                str(self.get_weight()),
+            )
+
+            painter.restore()
+
+    def __get_weight_box(self, directed) -> QRectF:
+        """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
+        # get the rectangle that bounds the text (according to the current font metric)
+        metrics = QFontMetrics(self.font)
+        r = metrics.boundingRect(str(self.get_weight()))
+
+        # get the mid point of the weight box, depending on whether it's a loop or not
+        if self[0] is self[1]:
+            # the distance from the center of the node to the side of the ellipse that
+            # is drawn to symbolize the loop
+            offset = Vector(0.5, 1) + Vector(0.5, 0).rotated(radians(45))
+            mid = self[0].get_position() - offset
+        else:
+            mid = Vector.average(self.__get_position(directed))
+
+        # scale it down by text_scale before returning it
+        # if width is smaller then height, set it to height
+        height = r.height()
+        width = r.width() if r.width() >= height else height
+
+        size = Vector(width, height) * self.text_scale
+        return QRectF(*(mid - size / 2), *size)
+
+    def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
+        """Draw the tip of the vertex (as a triangle)."""
+        uv = direction.unit()
+
+        # the brush color is given by the current pen
+        painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
+        painter.drawPolygon(
+            QPointF(*pos),
+            QPointF(*(pos + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+            QPointF(*(pos + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+        )
+
+    def __get_position(self, directed: bool) -> Tuple[Vector, Vector]:
+        """Return the starting and ending position of the vertex on the screen."""
+        # positions of the nodes
+        from_pos = Vector(*self[0].get_position())
+        to_pos = Vector(*self[1].get_position())
+
+        # unit vector from n1 to n2
+        uv = (to_pos - from_pos).unit()
+
+        # start and end of the vertex to be drawn
+        start = from_pos + uv
+        end = to_pos - uv
+
+        # if the graph is directed and a vertex exists that goes the other way, we
+        # have to move the start end end so the vertexes don't overlap
+        if directed and self[1].is_adjacent_to(self[0]):
+            start = start.rotated(self.arrow_separation, from_pos)
+            end = end.rotated(-self.arrow_separation, to_pos)
+
+        return start, end
+
+
+class DrawableGraph(Drawable, Graph):
     show_labels: bool = False  # whether or not to show the labels of nodes
 
     # a dictionary for calculating the distance from a root node
@@ -433,16 +644,17 @@ class DrawableGraph(Drawable, Graph):
     distance_from_root = {}
     root = None
 
+    vertex_class = DrawableVertex
+    node_class = DrawableNode
+
+    def __init__(self, *args, **kwargs):
+        Drawable.__init__(self)
+        Graph.__init__(self, *args, **kwargs)
+
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
-        self.font = painter.font()
-
-        # first, draw all vertices
-        for node in self.get_nodes():
-            for adjacent in node.get_adjacent():
-                # don't draw both ways if the graph is not oriented
-                if self.get_directed() or id(node) < id(adjacent):
-                    self.__draw_vertex(painter, palette, node, adjacent)
+        for vertex in self.get_vertices():
+            vertex.draw(painter, palette, self.is_directed(), self.is_weighted())
 
         # then, draw all nodes
         for node in self.get_nodes():
@@ -478,7 +690,7 @@ class DrawableGraph(Drawable, Graph):
             while len(queue) != 0:
                 current, distance = queue.pop(0)
 
-                for adjacent in current.get_adjacent():
+                for adjacent in current.get_adjacent_nodes():
                     if adjacent not in closed:
                         if distance not in self.distance_from_root:
                             self.distance_from_root[distance] = []
@@ -500,15 +712,8 @@ class DrawableGraph(Drawable, Graph):
         return self.root
 
     @recalculate_distance_to_root
-    def add_vertex(self, n1: Node, n2: Node, *args, **kwargs):
-        """A wrapper around the normal Graph() add_vertex function that also adds the
-        pen function with which to draw the vertex."""
-        n1.adjacent_pens[n2] = Pen(DEFAULT, Qt.SolidLine)
-
-        if not self.directed:
-            n2.adjacent_pens[n1] = Pen(DEFAULT, Qt.SolidLine)
-
-        super().add_vertex(n1, n2, *args, **kwargs)
+    def add_vertex(self, *args, **kwargs):
+        super().add_vertex(*args, **kwargs)
 
     @recalculate_distance_to_root
     def remove_vertex(self, *args, **kwargs):
@@ -525,118 +730,6 @@ class DrawableGraph(Drawable, Graph):
             self.set_root(None)
 
         super().remove_node(node, **kwargs)
-
-    def __draw_vertex(
-        self, painter: QPainter, palette: QPalette, n1: DrawableNode, n2: DrawableNode
-    ):
-        """Draw the specified vertex."""
-        painter.setPen(n1.adjacent_pens[n2](palette))
-        painter.setBrush(Qt.NoBrush)
-
-        # special case for a loop
-        if n1 is n2:
-            # draw the ellipse that symbolizes a loop
-            center = n1.get_position() - Vector(0.5, 1)
-            painter.drawEllipse(QPointF(*center), 0.5, 0.5)
-
-            # draw the head of the loop arrow
-            head_direction = Vector(0, 1).rotated(radians(self.loop_arrowhead_angle))
-            self.__draw_arrow_tip(center + Vector(0.5, 0), head_direction, painter)
-        else:
-            start, end = self.__get_vertex_position(n1, n2)
-
-            # draw the line
-            painter.drawLine(QPointF(*start), QPointF(*end))
-
-            # draw the head of a directed arrow, which is an equilateral triangle
-            if self.get_directed():
-                self.__draw_arrow_tip(end, end - start, painter)
-
-        # draw the weight
-        if self.get_weighted():
-            # set the color to be the same as the vertex
-            color = n1.adjacent_pens[n2].color(palette)
-            painter.setBrush(QBrush(color, Qt.SolidPattern))
-
-            painter.save()
-
-            # draw the bounding box
-            rect = self.__get_weight_box(n1, n2)
-            painter.drawRect(rect)
-
-            painter.setBrush(Brush(BACKGROUND)(palette))
-            painter.setPen(Pen(BACKGROUND)(palette))
-
-            scale = self.text_scale
-
-            # translate to top left and scale down to draw the actual text
-            painter.translate(rect.topLeft())
-            painter.scale(scale, scale)
-
-            painter.drawText(
-                QRectF(0, 0, rect.width() / scale, rect.height() / scale),
-                Qt.AlignCenter,
-                str(n1.get_adjacent()[n2]),
-            )
-
-            painter.restore()
-
-    def __get_weight_box(self, n1: DrawableNode, n2: DrawableNode) -> QRectF:
-        """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
-        # get the rectangle that bounds the text (according to the current font metric)
-        metrics = QFontMetrics(self.font)
-        r = metrics.boundingRect(str(n1.get_adjacent()[n2]))
-
-        # get the mid point of the weight box, depending on whether it's a loop or not
-        if n1 is n2:
-            # the distance from the center of the node to the side of the ellipse that
-            # is drawn to symbolize the loop
-            offset = Vector(0.5, 1) + Vector(0.5, 0).rotated(radians(45))
-            mid = n1.get_position() - offset
-        else:
-            mid = Vector.average(self.__get_vertex_position(n1, n2))
-
-        # scale it down by text_scale before returning it
-        # if width is smaller then height, set it to height
-        height = r.height()
-        width = r.width() if r.width() >= height else height
-
-        size = Vector(width, height) * self.text_scale
-        return QRectF(*(mid - size / 2), *size)
-
-    def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
-        """Draw the tip of the vertex (as a triangle)."""
-        uv = direction.unit()
-
-        # the brush color is given by the current pen
-        painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
-        painter.drawPolygon(
-            QPointF(*pos),
-            QPointF(*(pos + (-uv).rotated(radians(30)) * self.arrowhead_size)),
-            QPointF(*(pos + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
-        )
-
-    def __get_vertex_position(self, n1: Node, n2: Node) -> Tuple[Vector, Vector]:
-        """Return the starting and ending position of the vertex on the screen."""
-        # positions of the nodes
-        n1_p = Vector(*n1.get_position())
-        n2_p = Vector(*n2.get_position())
-
-        # unit vector from n1 to n2
-        uv = (n2_p - n1_p).unit()
-
-        # start and end of the vertex to be drawn
-        start = n1_p + uv
-        end = n2_p - uv
-
-        if self.get_directed():
-            # if the graph is directed and a vertex exists that goes the other way, we
-            # have to move the start end end so the vertexes don't overlap
-            if self.is_vertex(n2, n1):
-                start = start.rotated(self.arrow_separation, n1_p)
-                end = end.rotated(-self.arrow_separation, n2_p)
-
-        return start, end
 
     def select_all(self):
         """Select all nodes."""
@@ -658,14 +751,11 @@ class DrawableGraph(Drawable, Graph):
         """Return the resulting dictionary of a BFS ran from the root node."""
         return self.distance_from_root
 
-    def vertex_at_position(
-        self, position: Vector
-    ) -> Optional[Tuple[DrawableNode, DrawableNode]]:
+    def vertex_at_position(self, position: Vector) -> Optional[Vertex]:
         """Returns a vertex if there is one at the given position, else None."""
-        for n1 in self.get_nodes():
-            for n2 in n1.get_adjacent():
-                if self.__get_weight_box(n1, n2).contains(*position):
-                    return (n1, n2)
+        for vertex in self.get_vertices():
+            if vertex.__get_weight_box(self.is_directed()).contains(*position):
+                return vertex
 
     def to_asymptote(self) -> str:
         # TODO possible export option

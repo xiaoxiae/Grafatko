@@ -73,7 +73,7 @@ class Canvas(QWidget):
         # only move the nodes when forces are enabled
         if self.forces:
             for i, n1 in enumerate(self.graph.get_nodes()):
-                for n2 in self.graph.get_nodes()[i + 1 :]:
+                for n2 in self.graph.get_nodes()[i + 1:]:
                     # only apply force, if n1 and n2 are weakly connected
                     if not self.graph.weakly_connected(n1, n2):
                         continue
@@ -97,13 +97,13 @@ class Canvas(QWidget):
 
                     # if they are also connected, add the attraction force
                     # the direction does not matter -- it would look weird for directed
-                    if self.graph.is_vertex(n1, n2) or self.graph.is_vertex(n2, n1):
+                    if n1.is_adjacent_to(n2) or n2.is_adjacent_to(n1):
                         fa = self.attraction(d)
 
                         n1.add_force(-uv * fa)
                         n2.add_force(uv * fa)
 
-                # special
+                # root is special
                 if n1 is root:
                     n1.clear_forces()
                 else:
@@ -300,14 +300,27 @@ class Canvas(QWidget):
         if path == "":
             return
 
-        # TODO: add parsing exceptions
-        if new_graph := DrawableGraph.from_string(open(path, "r").read(), DrawableNode):
-            self.graph = new_graph
+        try:
+            # TODO make the creation less jittery
+            
+            # create the graph
+            if new_graph := DrawableGraph.from_string(open(path, "r").read()):
+                self.graph = new_graph
 
-        self.transformation.center(
-            Vector.average([n.get_position() for n in self.graph.get_nodes()]),
-            center_smoothness=1,
-        )
+            # center on it (immediately)
+            self.transformation.center(
+                Vector.average([n.get_position() for n in self.graph.get_nodes()]),
+                center_smoothness=1,
+            )
+
+        except Exception as e:
+            # TODO
+            QMessageBox.critical(
+                self,
+                "Error!",
+                "An error occurred when importing the graph."
+            )
+
 
     def export_graph(self):
         """Prompt a graph (from file) export."""
@@ -320,12 +333,11 @@ class Canvas(QWidget):
             with open(path, "w") as f:
                 f.write(self.graph.to_string())
         except Exception as e:
-            # TODO: more specific exceptions raised when parsing
+            # TODO
             QMessageBox.critical(
                 self,
                 "Error!",
-                "An error occurred when exporting the graph. Make sure that you "
-                "have permission to write to the specified file and try again!",
+                "An error occurred when exporting the graph."
             )
 
             # clean-up
