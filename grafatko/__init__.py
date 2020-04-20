@@ -73,7 +73,7 @@ class Canvas(QWidget):
         # only move the nodes when forces are enabled
         if self.forces:
             for i, n1 in enumerate(self.graph.get_nodes()):
-                for n2 in self.graph.get_nodes()[i + 1:]:
+                for n2 in self.graph.get_nodes()[i + 1 :]:
                     # only apply force, if n1 and n2 are weakly connected
                     if not self.graph.weakly_connected(n1, n2):
                         continue
@@ -212,13 +212,14 @@ class Canvas(QWidget):
         self.setFocus()  # done so that key strokes register
         key = self.mouse.pressed_event(event)
 
-        # get the node at the position where we clicked
-        pressed = self.graph.node_at_position(self.mouse.get_position())
+        # get the node and the vertex at the position where we clicked
+        pressed_node = self.graph.node_at_position(self.mouse.get_position())
+        pressed_vertices = self.graph.vertices_at_position(self.mouse.get_position())
 
         if key is self.mouse.left:
             # if we hit a node, start dragging the nodes
-            if pressed is not None:
-                self.select(pressed)
+            if pressed_node is not None:
+                self.select(pressed_node)
 
                 # start dragging the nodes
                 for node in self.graph.get_selected():
@@ -228,6 +229,10 @@ class Canvas(QWidget):
                 if self.keyboard.shift.pressed():
                     self.start_shift_dragging_nodes()
 
+            elif len(pressed_vertices) != 0:
+                for i, pressed_vertex in enumerate(pressed_vertices):
+                    self.select(pressed_vertex, i > 0)
+
             # else de-select when shift is not pressed
             elif not self.keyboard.shift.pressed():
                 self.graph.deselect_all()
@@ -235,20 +240,20 @@ class Canvas(QWidget):
         elif key is self.mouse.right:
             selected = self.graph.get_selected()
 
-            if pressed is None:
+            if pressed_node is None:
                 # if there isn't a node at the position, create a new one, connect
                 # all selected to it and select
-                pressed = DrawableNode(self.mouse.get_position())
-                self.graph.add_node(pressed)
+                pressed_node = DrawableNode(self.mouse.get_position())
+                self.graph.add_node(pressed_node)
 
                 for node in selected:
-                    self.graph.add_vertex(node, pressed)
+                    self.graph.add_vertex(node, pressed_node)
 
-                self.select(pressed)
+                self.select(pressed_node)
             else:
                 # if there is, toggle vertices from selected to it
                 for node in selected:
-                    self.graph.toggle_vertex(node, pressed)
+                    self.graph.toggle_vertex(node, pressed_node)
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is turned."""
@@ -276,14 +281,14 @@ class Canvas(QWidget):
         for node in nodes:
             node.set_position(node.get_position().rotated(angle, pivot), True)
 
-    def select(self, node: DrawableNode):
-        """Select the given node."""
+    def select(self, thing: DrawableNode, override_shift=False):
+        """Select the given thingy."""
         # only select one when shift is not pressed
-        if not self.keyboard.shift.pressed():
+        if not self.keyboard.shift.pressed() and not override_shift:
             self.graph.deselect_all()
 
-        # else just select the node
-        node.select()
+        # else just select it
+        thing.select()
 
     def get_graph(self):
         """Get the current graph."""
@@ -302,7 +307,6 @@ class Canvas(QWidget):
 
         try:
             # TODO make the creation less jittery
-            
             # create the graph
             if new_graph := DrawableGraph.from_string(open(path, "r").read()):
                 self.graph = new_graph
@@ -316,11 +320,8 @@ class Canvas(QWidget):
         except Exception as e:
             # TODO
             QMessageBox.critical(
-                self,
-                "Error!",
-                "An error occurred when importing the graph."
+                self, "Error!", "An error occurred when importing the graph."
             )
-
 
     def export_graph(self):
         """Prompt a graph (from file) export."""
@@ -335,9 +336,7 @@ class Canvas(QWidget):
         except Exception as e:
             # TODO
             QMessageBox.critical(
-                self,
-                "Error!",
-                "An error occurred when exporting the graph."
+                self, "Error!", "An error occurred when exporting the graph."
             )
 
             # clean-up
@@ -439,7 +438,7 @@ class GraphVisualizer(QMainWindow):
         # algorithm menu
         self.help_menu = self.menubar.addMenu("&Algorithms")
         self.help_menu.addActions(
-            [QAction("&Run", self, triggered=self.canvas.run_algorithm, ), ]
+            [QAction("&Run", self, triggered=self.canvas.run_algorithm,),]
         )
 
         ## Dock

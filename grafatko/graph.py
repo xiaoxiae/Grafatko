@@ -378,14 +378,10 @@ class Graph:
 class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
 
-    def __init__(self, pen: Pen = None, brush: Brush = None):
-        if pen is None:
-            pen = Pen(DEFAULT, Qt.SolidLine)
-        if brush is None:
-            brush = Brush(DEFAULT, Qt.SolidPattern)
-
-        self.pen = pen
-        self.brush = brush
+    def __init__(self, pen: Pen = None, brush: Brush = None, font_pen: Pen = None):
+        self.pen = pen or Pen(DEFAULT, Qt.SolidLine)
+        self.brush = brush or Brush(DEFAULT, Qt.SolidPattern)
+        self.font_pen = font_pen or Pen(BACKGROUND, Qt.SolidLine)
 
     @abstractmethod
     def draw(self, painter: QPainter, palette: QPalette, *args, **kwargs):
@@ -393,11 +389,36 @@ class Drawable(ABC):
         and the palette to generate relative colors from."""
 
 
-class DrawableNode(Drawable, Node):
+class Selectable:
+    """Something that can be selected."""
+
+    def __init__(self, callback=None):
+        self.selected = False
+        self.callback = callback
+
+    def select(self):
+        """Mark the node as selected."""
+        self.selected = True
+        self.callback(self.selected)
+
+    def deselect(self):
+        """Mark the node as not selected."""
+        self.selected = False
+        self.callback(self.selected)
+
+    def is_selected(self) -> bool:
+        """Return, whether the node is selected or not."""
+        return self.selected
+
+
+class DrawableNode(Drawable, Selectable, Node):
     def __init__(self, position=Vector(0, 0), *args, **kwargs):
         self.position: Vector = position
 
         Drawable.__init__(self)
+        Selectable.__init__(
+            self, callback=lambda v: self.__selected() if v else self.__deselect()
+        )
         Node.__init__(self, *args, **kwargs)
 
         self.forces: List[Vector] = []
@@ -409,6 +430,14 @@ class DrawableNode(Drawable, Node):
 
         # whether it's currently selected or not
         self.selected = False
+
+    def __selected(self):
+        """Callback function for a node being selected."""
+        self.brush.color = BACKGROUND
+
+    def __deselect(self):
+        """Callback function for a node being deselected."""
+        self.brush.color = DEFAULT
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
@@ -433,24 +462,6 @@ class DrawableNode(Drawable, Node):
     def is_dragged(self) -> bool:
         """Return true if the node is currently in a dragged state."""
         return self.drag is not None
-
-    def select(self):
-        """Mark the node as selected."""
-        self.brush.color = SELECTED
-        self.__set_selected(True)
-
-    def deselect(self):
-        """Mark the node as not selected."""
-        self.brush.color = DEFAULT
-        self.__set_selected(False)
-
-    def __set_selected(self, value: bool):
-        """Set the selected status of the node."""
-        self.selected = value
-
-    def is_selected(self) -> bool:
-        """Return, whether the node is selected or not."""
-        return self.selected
 
     def add_force(self, force: Vector):
         """Adds a force that is acting upon the node to the force list."""
@@ -491,8 +502,7 @@ class DrawableNode(Drawable, Node):
 
             painter.save()
 
-            painter.setBrush(Brush(BACKGROUND)(palette))
-            painter.setPen(Pen(BACKGROUND)(palette))
+            painter.setPen(self.font_pen(palette))
 
             # translate to top left and scale down to draw the actual text
             painter.translate(rect.topLeft())
@@ -507,7 +517,7 @@ class DrawableNode(Drawable, Node):
             painter.restore()
 
 
-class DrawableVertex(Drawable, Vertex):
+class DrawableVertex(Drawable, Selectable, Vertex):
     font: QFont = None  # the font that is used to draw the weights
 
     arrowhead_size: Final[float] = 0.5  # how big is the head triangle
@@ -519,9 +529,10 @@ class DrawableVertex(Drawable, Vertex):
 
     def __init__(self, *args, **kwargs):
         Drawable.__init__(self)
+        Selectable.__init__(
+            self, callback=lambda v: self.__selected() if v else self.__deselect()
+        )
         Vertex.__init__(self, *args, **kwargs)
-
-        self.brush = Brush.empty()
 
     def draw(
         self, painter: QPainter, palette: QPalette, directed: bool, weighted: bool
@@ -553,14 +564,11 @@ class DrawableVertex(Drawable, Vertex):
 
         # draw the weight
         if weighted:
-            # set the color to be the same as the vertex
-            color = self.pen.color(palette)
-            painter.setBrush(QBrush(color, Qt.SolidPattern))
-
+            painter.setBrush(self.brush(palette))
             painter.save()
 
             # draw the bounding box
-            rect = self.__get_weight_box(directed)
+            rect = self._get_weight_box(directed)
             painter.drawRect(rect)
 
             scale = self.text_scale
@@ -569,7 +577,7 @@ class DrawableVertex(Drawable, Vertex):
             painter.translate(rect.topLeft())
             painter.scale(scale, scale)
 
-            painter.setPen(Pen(color=BACKGROUND)(palette))
+            painter.setPen(self.font_pen(palette))
 
             painter.drawText(
                 QRectF(0, 0, rect.width() / scale, rect.height() / scale),
@@ -579,7 +587,17 @@ class DrawableVertex(Drawable, Vertex):
 
             painter.restore()
 
-    def __get_weight_box(self, directed) -> QRectF:
+    def __selected(self):
+        """Callback function for a node being selected."""
+        self.font_pen.color = DEFAULT
+        self.brush.color = BACKGROUND
+
+    def __deselect(self):
+        """Callback function for a node being deselected."""
+        self.font_pen.color = BACKGROUND
+        self.brush.color = DEFAULT
+
+    def _get_weight_box(self, directed) -> QRectF:
         """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
         # get the rectangle that bounds the text (according to the current font metric)
         metrics = QFontMetrics(self.font)
@@ -731,15 +749,13 @@ class DrawableGraph(Drawable, Graph):
 
         super().remove_node(node, **kwargs)
 
-    def select_all(self):
-        """Select all nodes."""
-        for node in self.get_nodes():
-            node.select()
-
     def deselect_all(self):
-        """Deselect all nodes."""
+        """Deselect all nodes and vertices."""
         for node in self.get_nodes():
             node.deselect()
+
+        for vertex in self.get_vertices():
+            vertex.deselect()
 
     def node_at_position(self, position: Vector) -> Optional[DrawableNode]:
         """Returns a Node if there is one at the given position, else None."""
@@ -751,11 +767,15 @@ class DrawableGraph(Drawable, Graph):
         """Return the resulting dictionary of a BFS ran from the root node."""
         return self.distance_from_root
 
-    def vertex_at_position(self, position: Vector) -> Optional[Vertex]:
-        """Returns a vertex if there is one at the given position, else None."""
+    def vertices_at_position(self, position: Vector) -> List[Vertex]:
+        """Returns vertices at the given position."""
+        vertices = []
+
         for vertex in self.get_vertices():
-            if vertex.__get_weight_box(self.is_directed()).contains(*position):
-                return vertex
+            if vertex._get_weight_box(self.is_directed()).contains(*position):
+                vertices.append(vertex)
+
+        return vertices
 
     def to_asymptote(self) -> str:
         # TODO possible export option
