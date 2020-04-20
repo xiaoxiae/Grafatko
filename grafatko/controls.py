@@ -93,6 +93,11 @@ class Mouse(PressableCollection):
         self.prev_position = self.position
         self.position = Vector(event.pos().x(), event.pos().y())
 
+    def get_previous_position(self):
+        """Get the previous mouse position."""
+        if self.prev_position is not None:
+            return self.transformation.apply(self.prev_position)
+
     def get_position(self):
         """Get the current mouse position."""
         if self.position is not None:
