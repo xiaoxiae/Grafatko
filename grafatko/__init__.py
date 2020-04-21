@@ -31,7 +31,7 @@ class Canvas(QWidget):
         # TODO: add a mouse select thingy for selecting multiple nodes
 
         # GRAPH
-        self.graph = DrawableGraph()
+        self.graph = DrawableGraph(selection_changed=self.selection_changed)
 
         # CANVAS STUFF
         self.transformation = Transformation(self)
@@ -43,7 +43,7 @@ class Canvas(QWidget):
         self.keyboard = Keyboard()
 
         self.line_edit = line_edit
-        self.line_edit.textChanged.connect(self.line_edit_changed)
+        self.line_edit.textEdited.connect(self.line_edit_changed)
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
@@ -110,14 +110,56 @@ class Canvas(QWidget):
                     n1.evaluate_forces()
 
         # if space is being pressed, center around the currently selected nodes
-        if self.keyboard.space.pressed() and len(ns := self.graph.get_selected_nodes()) != 0:
+        if (
+            self.keyboard.space.pressed()
+            and len(ns := self.graph.get_selected_nodes()) != 0
+        ):
             self.transformation.center(Vector.average([n.get_position() for n in ns]))
 
         super().update(*args)
 
     def line_edit_changed(self, text):
         """Called when the line edit associated with the Canvas changed."""
-        pass
+        selected = self.graph.get_selected_objects()
+
+        if type(selected[0]) is DrawableNode:
+            selected[0].set_label(text)
+        else:
+            # TODO make this code better?
+            try:
+                weight = int(text)
+            except:
+                try:
+                    weight = float(text)
+                except:
+                    weight = None
+
+            if weight is not None:
+                for v in selected:
+                    v.set_weight(weight)
+
+    def selection_changed(self):
+        """Called when something in the graph gets selected/deselected."""
+        selected = self.graph.get_selected_objects()
+
+        if len(selected) == 0:
+            self.line_edit.setReadOnly(True)
+            self.line_edit.setText("Select a node or a vertex to edit.")
+        elif len(selected) >= 2 and not (
+            type(selected[0]) is DrawableVertex
+            and type(selected[1]) is DrawableVertex
+            and selected[0][0] == selected[1][1]
+            and selected[0][1] == selected[1][0]
+        ):
+            self.line_edit.setReadOnly(True)
+            self.line_edit.setText("Select only one node or a vertex to edit.")
+        else:
+            self.line_edit.setReadOnly(False)
+
+            if type(selected[0]) is DrawableNode:
+                self.line_edit.setText(selected[0].get_label() or "")
+            else:
+                self.line_edit.setText(str(selected[0].get_weight()))
 
     def paintEvent(self, event):
         """Paints the board."""
@@ -178,7 +220,6 @@ class Canvas(QWidget):
 
             for vertex in self.graph.get_selected_vertices():
                 self.graph.remove_vertex(vertex[0], vertex[1])
-
 
         elif key is self.keyboard.shift and self.mouse.left.pressed():
             self.start_shift_dragging_nodes()
@@ -247,7 +288,7 @@ class Canvas(QWidget):
             if pressed_node is None:
                 # if there isn't a node at the position, create a new one, connect
                 # all selected to it and select
-                pressed_node = DrawableNode(self.mouse.get_position())
+                pressed_node = DrawableNode(position=self.mouse.get_position())
                 self.graph.add_node(pressed_node)
 
                 for node in selected:
@@ -266,7 +307,9 @@ class Canvas(QWidget):
         # rotate nodes on shift press
         if self.keyboard.shift.pressed():
             if len(selected := self.graph.get_selected_nodes()) != 0:
-                nodes = self.graph.get_weakly_connected(*self.graph.get_selected_nodes())
+                nodes = self.graph.get_weakly_connected(
+                    *self.graph.get_selected_nodes()
+                )
                 pivot = Vector.average([n.get_position() for n in selected])
                 self.rotate_about(nodes, delta, pivot)
 
@@ -379,7 +422,6 @@ class GraphVisualizer(QMainWindow):
         self.setCentralWidget(self.canvas)
 
         # TODO: add to tab order (and highlight when it is)
-        self.canvas.setFocus()
 
         ## Top menu bar
         self.menubar = self.menuBar()
@@ -472,6 +514,7 @@ class GraphVisualizer(QMainWindow):
                 "labels",
                 self,
                 toggled=lambda value: self.canvas.get_graph().set_show_labels(value),
+                checked=True,
             ),
             (2, 1): QCheckBox(
                 "gravity",
@@ -501,6 +544,12 @@ class GraphVisualizer(QMainWindow):
 
         # WINDOW SETTINGS
         self.show()
+
+    def keyPressEvent(self, event):
+        self.canvas.keyPressEvent(event)
+
+    def keyReleaseEvent(self, event):
+        self.canvas.keyReleaseEvent(event)
 
 
 def run():

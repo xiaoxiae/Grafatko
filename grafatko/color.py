@@ -86,11 +86,7 @@ class ColorAnimation:
     """A class for animating attribute transitions (color) when drawing the graph."""
 
     def __init__(
-        self,
-        start: Callable[[QPalette], QColor],
-        end: Callable[[QPalette], QColor],
-        duration: int = 200,
-        update_period = 10,
+        self, start: Color, end: Color, duration: int = 200, update_period=10,
     ):
         # the timer to track the animation
         self.timer = QTimer()

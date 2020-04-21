@@ -18,9 +18,17 @@ class Node:
         self.adjacent: Set[Vertex] = set()
         self.label = label
 
-    def get_label(self):
+    def get_label(self) -> Optional[str]:
         """Return the label of the node."""
         return self.label
+
+    def set_label(self, label: Optional[str]):
+        """Set the label of the node."""
+        self.label = label
+
+        # don't allow empty labels (makes problems)
+        if label is not None and len(label) == 0:
+            label = None
 
     def get_adjacent_vertices(self) -> Set[Vertex]:
         """Returns a set of vertices adjacent to this one."""
@@ -76,23 +84,22 @@ class Vertex:
         self.weight = value
 
 
-@dataclass
 class Graph:
     """A class for working with graphs."""
 
-    directed: bool = False
-    weighted: bool = False
-
-    nodes: List[Node] = field(default_factory=list)
-    vertices: List[Vertex] = field(default_factory=list)
-
-    # a component array that gets recalculated on each destructive graph operation
-    # takes O(n^2) to rebuild, but O(1) to check components, so it's better for us
-    components: List[Set[Node]] = None
-
-    # to know which kind of vertices and nodes to create
     vertex_class = Vertex
     node_class = Node
+
+    def __init__(self):
+        self.directed: bool = False
+        self.weighted: bool = False
+
+        self.nodes: List[Node] = []
+        self.vertices: List[Vertex] = []
+
+        # a component array that gets recalculated on each destructive graph operation
+        # takes O(n^2) to rebuild, but O(1) to check components, so it's better for us
+        self.components: List[Set[Node]] = None
 
     def recalculate_components(function):
         """A decorator for rebuilding the components of the graph."""
@@ -228,7 +235,7 @@ class Graph:
             other._remove_adjacent_node(node)
 
     @recalculate_components
-    def add_vertex(self, n1: Node, n2: Node, weight: Optional[float] = 1):
+    def add_vertex(self, n1: Node, n2: Node, weight: Optional[float] = 1, **kwargs):
         """Adds a vertex from node n1 to node n2 (and vice versa, if it's not directed).
         Only does so if the given vertex doesn't already exist and can be added (if, for
         example the graph is not directed and the node wants to point to itself)."""
@@ -237,13 +244,13 @@ class Graph:
             return
 
         # create the object, adding it to vertices
-        vertex = self.vertex_class(n1, n2, weight)
+        vertex = self.vertex_class(n1, n2, weight, **kwargs)
         self.vertices.append(vertex)
         n1._add_adjacent(vertex)
 
         # add it one/both ways, depending on whether the graph is directed or not
         if not self.is_directed():
-            vertex = self.vertex_class(n2, n1, weight)
+            vertex = self.vertex_class(n2, n1, weight, **kwargs)
             self.vertices.append(vertex)
             n2._add_adjacent(vertex)
 
@@ -344,9 +351,7 @@ class Graph:
                     n2_label = added[n2]
 
                 # TODO: simplify this code
-                print(":ahoj")
                 if n1.is_adjacent_to(n2):
-                    print(self.get_weight(n1, n2))
                     string += (
                         n1_label
                         + (" -> " if self.is_directed() else " ")
@@ -393,8 +398,10 @@ class Selectable:
     """Something that can be selected."""
 
     def __init__(self, callback=None):
-        self.selected = False
         self.callback = callback
+        self.selected = False
+
+        self.callback(self.selected)  # call the callback with false by default
 
     def select(self):
         """Mark the node as selected."""
@@ -411,12 +418,29 @@ class Selectable:
         return self.selected
 
 
-class DrawableNode(Drawable, Selectable, Node):
-    def __init__(self, position=Vector(0, 0), *args, **kwargs):
+class Animatable:
+    """Something that can be animated."""
+
+    def __init__(self):
+        self.animation_queue: List[Animation] = []
+
+    def add_animation(self, animation: Animation):
+        """Add an animation to the animation queue."""
+        self.animation_queue.append(animation)
+
+    def get_animations(self) -> List[Animation]:
+        """Return all animations held in the queue."""
+        return self.animation_queue
+
+
+class DrawableNode(Drawable, Selectable, Animatable, Node):
+    def __init__(self, *args, position=Vector(0, 0), **kwargs):
+        self.selected_callback = None
         self.position: Vector = position
 
         Drawable.__init__(self)
         Selectable.__init__(self, callback=self.set_default_color)
+        Animatable.__init__(self)
         Node.__init__(self, *args, **kwargs)
 
         self.forces: List[Vector] = []
@@ -426,8 +450,8 @@ class DrawableNode(Drawable, Selectable, Node):
         # it's the offset from the mouse when the drag started
         self.drag: Optional[Vector] = None
 
-        # whether it's currently selected or not
-        self.selected = False
+    def set_selected_callback(self, callback: Callable):
+        self.selected_callback = callback
 
     def set_default_color(self, value=None):
         """(re)set the color to the appropriate one, depending on selected."""
@@ -440,6 +464,9 @@ class DrawableNode(Drawable, Selectable, Node):
         else:
             self.brush.set_color(Color.text())
             self.font_pen.set_color(Color.background())
+
+        if self.selected_callback is not None:
+            self.selected_callback()
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
@@ -519,9 +546,7 @@ class DrawableNode(Drawable, Selectable, Node):
             painter.restore()
 
 
-class DrawableVertex(Drawable, Selectable, Vertex):
-    font: QFont = None  # the font that is used to draw the weights
-
+class DrawableVertex(Drawable, Selectable, Animatable, Vertex):
     arrowhead_size: Final[float] = 0.5  # how big is the head triangle
     arrow_separation: Final[float] = pi / 7  # how far apart are two-way vertices
     loop_arrowhead_angle: Final[float] = -30.0  # an angle for the head in a loop
@@ -529,10 +554,15 @@ class DrawableVertex(Drawable, Selectable, Vertex):
     # possible TODO: compute this programatically
     text_scale: Final[float] = 0.04  # the constant by which to scale down the font
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, selected_callback: Callable = None, **kwargs):
+        self.selected_callback = selected_callback
+
         Drawable.__init__(self)
         Selectable.__init__(self, callback=self.set_default_color)
+        Animatable.__init__(self)
         Vertex.__init__(self, *args, **kwargs)
+
+        self.font: QFont = None  # the font that is used to draw the weights
 
     def draw(
         self, painter: QPainter, palette: QPalette, directed: bool, weighted: bool
@@ -553,7 +583,7 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
             # draw the head of the loop arrow
             head_direction = Vector(0, 1).rotated(radians(self.loop_arrowhead_angle))
-            self.__draw_arrow_tip(center + Vector(0.5, 0), head_direction, painter, palette)
+            self.__draw_tip(center + Vector(0.5, 0), head_direction, painter, palette)
         else:
             start, end = self.__get_position(directed)
 
@@ -562,7 +592,7 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
             # draw the head of a directed arrow, which is an equilateral triangle
             if directed:
-                self.__draw_arrow_tip(end, end - start, painter, palette)
+                self.__draw_tip(end, end - start, painter, palette)
 
         # draw the weight
         if weighted:
@@ -601,6 +631,9 @@ class DrawableVertex(Drawable, Selectable, Vertex):
             self.font_pen.set_color(Color.background())
             self.brush.set_color(Color.text())
 
+        if self.selected_callback is not None:
+            self.selected_callback()
+
     def _get_weight_box(self, directed) -> QRectF:
         """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
         # get the rectangle that bounds the text (according to the current font metric)
@@ -624,16 +657,18 @@ class DrawableVertex(Drawable, Selectable, Vertex):
         size = Vector(width, height) * self.text_scale
         return QRectF(*(mid - size / 2), *size)
 
-    def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter, palette: QPalette):
+    def __draw_tip(
+        self, position: Vector, direction: Vector, painter: QPainter, palette: QPalette
+    ):
         """Draw the tip of the vertex (as a triangle)."""
         uv = direction.unit()
 
         # the brush color is given by the current pen
         painter.setBrush(Brush(self.pen.get_color())(palette))
         painter.drawPolygon(
-            QPointF(*pos),
-            QPointF(*(pos + (-uv).rotated(radians(30)) * self.arrowhead_size)),
-            QPointF(*(pos + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
+            QPointF(*position),
+            QPointF(*(position + (-uv).rotated(radians(30)) * self.arrowhead_size)),
+            QPointF(*(position + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
         )
 
     def __get_position(self, directed: bool) -> Tuple[Vector, Vector]:
@@ -659,17 +694,22 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
 
 class DrawableGraph(Drawable, Graph):
-    show_labels: bool = False  # whether or not to show the labels of nodes
-
-    # a dictionary for calculating the distance from a root node
-    # used in displaying the graph as a tree
-    distance_from_root = {}
-    root = None
+    """A class for working with graphs that can be drawn."""
 
     vertex_class = DrawableVertex
     node_class = DrawableNode
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, selection_changed=None, **kwargs):
+        self.show_labels: bool = False  # whether or not to show the labels of nodes
+
+        # a dictionary for calculating the distance from a root node
+        # used in displaying the graph as a tree
+        self.distance_from_root = {}
+        self.root = None
+
+        # called when something in the graph is selected/deselected
+        self.selection_changed: Callable = selection_changed
+
         Drawable.__init__(self)
         Graph.__init__(self, *args, **kwargs)
 
@@ -689,6 +729,10 @@ class DrawableGraph(Drawable, Graph):
     def get_selected_vertices(self) -> List[DrawableVertex]:
         """Return a list of all currently selected vertices."""
         return [v for v in self.get_vertices() if v.is_selected()]
+
+    def get_selected_objects(self) -> List[Union[DrawableNode, DrawableVertex]]:
+        """Return selected nodes and vertices."""
+        return self.get_selected_nodes() + self.get_selected_vertices()
 
     def set_show_labels(self, value: bool):
         """Whether to show the node labels or not."""
@@ -739,15 +783,16 @@ class DrawableGraph(Drawable, Graph):
 
     @recalculate_distance_to_root
     def add_vertex(self, *args, **kwargs):
-        super().add_vertex(*args, **kwargs)
+        super().add_vertex(*args, selected_callback=self.selection_changed, **kwargs)
 
     @recalculate_distance_to_root
     def remove_vertex(self, *args, **kwargs):
         super().remove_vertex(*args, **kwargs)
 
     @recalculate_distance_to_root
-    def add_node(self, *args, **kwargs):
-        super().add_node(*args, **kwargs)
+    def add_node(self, node: DrawableNode):
+        super().add_node(node)
+        node.set_selected_callback(self.selection_changed)
 
     @recalculate_distance_to_root
     def remove_node(self, node, **kwargs):
