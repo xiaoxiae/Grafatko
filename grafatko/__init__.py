@@ -14,8 +14,8 @@ from grafatko.graph import *
 class Canvas(QWidget):
     # WIDGET OPTIONS
     contrast_coefficient = 10
-    background_brush = Brush(lighter(BACKGROUND, 100 + contrast_coefficient))
-    background_pen = Pen(darker(BACKGROUND, 100 + contrast_coefficient))
+    background_brush = Brush(Color.background().lighter(100 + contrast_coefficient))
+    background_pen = Pen(Color.background().darker(100 + contrast_coefficient))
 
     # whether the forces are enabled/disabled
     forces: bool = True

@@ -1,5 +1,6 @@
 """A class for constructing various colors, given the current canvas palette."""
 
+from __future__ import annotations
 from typing import *
 from dataclasses import dataclass
 
@@ -7,39 +8,52 @@ from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 
-def RGB(r: int, g: int, b: int):
-    """The color from RGB."""
-    return lambda palette: QColor.fromRgb(r, g, b)
+class Color:
+    """A class for generating QColors, given a QPalette. Done to be application theme
+    independent."""
 
+    def __init__(self, color_function: Callable[[QPalette], QColor]):
+        self.color_function = color_function
 
-def DEFAULT(palette: QPalette) -> QColor:
-    """The default color, taken from the color of the text."""
-    return palette.text().color()
+    @classmethod
+    def text(self) -> Color:
+        """The text color of the palette"""
+        return Color(lambda palette: palette.text().color())
 
+    @classmethod
+    def background(self) -> Color:
+        """The background color of the palette."""
+        return Color(lambda palette: palette.window().color())
 
-def BACKGROUND(palette: QPalette) -> QColor:
-    """The background color."""
-    return palette.window().color()
+    @classmethod
+    def selected(self) -> Color:
+        """The text color of things that are selected."""
+        return Color(lambda palette: palette.alternateBase().color())
 
+    def __call__(self, palette: QPalette) -> QColor:
+        """Generate the color, given the palette and the color function."""
+        return self.color_function(palette)
 
-def SELECTED(palette: QPalette) -> QColor:
-    """The default color of selected nodes."""
-    return palette.alternateBase().color()
+    def lighter(self, coefficient: float) -> Color:
+        """Return a Color object that is lighter than the current one by a coefficient."""
+        return Color(lambda palette: self.color_function(palette).lighter(coefficient))
 
-
-def lighter(color: Callable[[QPalette], QColor], coefficient: Union[float, int]):
-    """A wrapper function that takes one of the functions above and makes it lighter."""
-    return lambda palette: color(palette).lighter(coefficient)
-
-
-def darker(color: Callable[[QPalette], QColor], coefficient: Union[float, int]):
-    """A wrapper function that takes one of the functions above and makes it darker."""
-    return lambda palette: color(palette).darker(coefficient)
+    def darker(self, coefficient: float) -> Color:
+        """Return a Color object that is darker than the current one by a coefficient."""
+        return Color(lambda palette: self.color_function(palette).darker(coefficient))
 
 
 @dataclass
 class Colorable:
-    color: Callable[[QPalette], QColor] = None
+    """Something that can be colored."""
+
+    color: Color = Color.text()
+
+    def set_color(self, color: Color):
+        self.color = color
+
+    def get_color(self) -> Color:
+        return self.color
 
 
 @dataclass
@@ -50,7 +64,7 @@ class Pen(Colorable):
     width: float = 0.1
 
     def __call__(self, palette: QPalette):
-        return QPen(self.color(palette), self.width, self.style)
+        return QPen(self.get_color()(palette), self.width, self.style)
 
 
 @dataclass
@@ -60,7 +74,7 @@ class Brush(Colorable):
     style: Qt.BrushStyle = Qt.SolidPattern
 
     def __call__(self, palette: QPalette):
-        return QBrush(self.color(palette), self.style)
+        return QBrush(self.get_color()(palette), self.style)
 
     @classmethod
     def empty(cls):

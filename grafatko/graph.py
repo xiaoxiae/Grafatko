@@ -379,9 +379,9 @@ class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
 
     def __init__(self, pen: Pen = None, brush: Brush = None, font_pen: Pen = None):
-        self.pen = pen or Pen(DEFAULT, Qt.SolidLine)
-        self.brush = brush or Brush(DEFAULT, Qt.SolidPattern)
-        self.font_pen = font_pen or Pen(BACKGROUND, Qt.SolidLine)
+        self.pen = pen or Pen()
+        self.brush = brush or Brush()
+        self.font_pen = font_pen or Pen()
 
     @abstractmethod
     def draw(self, painter: QPainter, palette: QPalette, *args, **kwargs):
@@ -435,11 +435,11 @@ class DrawableNode(Drawable, Selectable, Node):
             value = self.is_selected()
 
         if value:
-            self.brush.color = BACKGROUND
-            self.font_pen.color = DEFAULT
+            self.brush.set_color(Color.background())
+            self.font_pen.set_color(Color.text())
         else:
-            self.brush.color = DEFAULT
-            self.font_pen.color = BACKGROUND
+            self.brush.set_color(Color.text())
+            self.font_pen.set_color(Color.background())
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
@@ -553,7 +553,7 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
             # draw the head of the loop arrow
             head_direction = Vector(0, 1).rotated(radians(self.loop_arrowhead_angle))
-            self.__draw_arrow_tip(center + Vector(0.5, 0), head_direction, painter)
+            self.__draw_arrow_tip(center + Vector(0.5, 0), head_direction, painter, palette)
         else:
             start, end = self.__get_position(directed)
 
@@ -562,7 +562,7 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
             # draw the head of a directed arrow, which is an equilateral triangle
             if directed:
-                self.__draw_arrow_tip(end, end - start, painter)
+                self.__draw_arrow_tip(end, end - start, painter, palette)
 
         # draw the weight
         if weighted:
@@ -595,11 +595,11 @@ class DrawableVertex(Drawable, Selectable, Vertex):
             value = self.is_selected()
 
         if value:
-            self.font_pen.color = DEFAULT
-            self.brush.color = BACKGROUND
+            self.font_pen.set_color(Color.text())
+            self.brush.set_color(Color.background())
         else:
-            self.font_pen.color = BACKGROUND
-            self.brush.color = DEFAULT
+            self.font_pen.set_color(Color.background())
+            self.brush.set_color(Color.text())
 
     def _get_weight_box(self, directed) -> QRectF:
         """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
@@ -624,12 +624,12 @@ class DrawableVertex(Drawable, Selectable, Vertex):
         size = Vector(width, height) * self.text_scale
         return QRectF(*(mid - size / 2), *size)
 
-    def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter):
+    def __draw_arrow_tip(self, pos: Vector, direction: Vector, painter: QPainter, palette: QPalette):
         """Draw the tip of the vertex (as a triangle)."""
         uv = direction.unit()
 
         # the brush color is given by the current pen
-        painter.setBrush(QBrush(painter.pen().color(), Qt.SolidPattern))
+        painter.setBrush(Brush(self.pen.get_color())(palette))
         painter.drawPolygon(
             QPointF(*pos),
             QPointF(*(pos + (-uv).rotated(radians(30)) * self.arrowhead_size)),
@@ -687,7 +687,7 @@ class DrawableGraph(Drawable, Graph):
         return [n for n in self.get_nodes() if n.is_selected()]
 
     def get_selected_vertices(self) -> List[DrawableVertex]:
-        """Return a list of all currently selected nodes."""
+        """Return a list of all currently selected vertices."""
         return [v for v in self.get_vertices() if v.is_selected()]
 
     def set_show_labels(self, value: bool):
