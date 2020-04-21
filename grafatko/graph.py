@@ -436,8 +436,10 @@ class DrawableNode(Drawable, Selectable, Node):
 
         if value:
             self.brush.color = BACKGROUND
+            self.font_pen.color = DEFAULT
         else:
             self.brush.color = DEFAULT
+            self.font_pen.color = BACKGROUND
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
