@@ -86,10 +86,9 @@ class ColorAnimation:
     """A class for animating attribute transitions (color) when drawing the graph."""
 
     def __init__(
-        self, start: Color, end: Color, duration: int = 200, update_period=10,
+        self, start: Color, end: Color, duration: int = 200, parallel: bool = False
     ):
-        # the timer to track the animation
-        self.timer = QTimer()
+        self.curve = QEasingCurve()  # the curve by which to interpolate
 
         # key values
         self.start = start
@@ -100,16 +99,25 @@ class ColorAnimation:
 
         # for tracking whether the animation has finished
         self.finished = False
-        self.timer.timeout.connect(self.__finished())
 
-        self.timer.start(duration)
+        self.duration = duration
+        self.timer = QElapsedTimer()  # the timer to track the animation
+        self.timer.start()
 
-    def get_value(self, palette: QPalette):
+    def __call__(self, palette: QPalette):
         """Return the current interpolated value of the animation."""
-        QVariantAnimation().interpolated(
-            self.start(palette),
-            self.end(palette),
-            self.timer.remainingTime() / self.interval(),
+        start = self.start(palette)
+        end = self.end(palette)
+
+        # get the curve value
+        v = self.curve.valueForProgress(self.timer.elapsed() / self.duration)
+        v = min(max(0, v), 1)  # restrict to a value from 0 to 1
+
+        # return the interpolated color
+        return QColor.fromRgb(
+            start.red() * v + end.red() * (1 - v),
+            start.green() * v + end.green() * (1 - v),
+            start.blue() * v + end.blue() * (1 - v),
         )
 
     def __finished(self):
@@ -118,4 +126,4 @@ class ColorAnimation:
 
     def has_finished(self):
         """Return True if the animation finished, else False."""
-        return self.finished
+        return self.elapsed() > self.duration

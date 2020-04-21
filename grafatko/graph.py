@@ -418,29 +418,13 @@ class Selectable:
         return self.selected
 
 
-class Animatable:
-    """Something that can be animated."""
-
-    def __init__(self):
-        self.animation_queue: List[Animation] = []
-
-    def add_animation(self, animation: Animation):
-        """Add an animation to the animation queue."""
-        self.animation_queue.append(animation)
-
-    def get_animations(self) -> List[Animation]:
-        """Return all animations held in the queue."""
-        return self.animation_queue
-
-
-class DrawableNode(Drawable, Selectable, Animatable, Node):
+class DrawableNode(Drawable, Selectable, Node):
     def __init__(self, *args, position=Vector(0, 0), **kwargs):
         self.selected_callback = None
         self.position: Vector = position
 
         Drawable.__init__(self)
         Selectable.__init__(self, callback=self.set_default_color)
-        Animatable.__init__(self)
         Node.__init__(self, *args, **kwargs)
 
         self.forces: List[Vector] = []
@@ -546,7 +530,7 @@ class DrawableNode(Drawable, Selectable, Animatable, Node):
             painter.restore()
 
 
-class DrawableVertex(Drawable, Selectable, Animatable, Vertex):
+class DrawableVertex(Drawable, Selectable, Vertex):
     arrowhead_size: Final[float] = 0.5  # how big is the head triangle
     arrow_separation: Final[float] = pi / 7  # how far apart are two-way vertices
     loop_arrowhead_angle: Final[float] = -30.0  # an angle for the head in a loop
@@ -559,7 +543,6 @@ class DrawableVertex(Drawable, Selectable, Animatable, Vertex):
 
         Drawable.__init__(self)
         Selectable.__init__(self, callback=self.set_default_color)
-        Animatable.__init__(self)
         Vertex.__init__(self, *args, **kwargs)
 
         self.font: QFont = None  # the font that is used to draw the weights
@@ -715,6 +698,7 @@ class DrawableGraph(Drawable, Graph):
 
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
+        # first, draw all vertices
         for vertex in self.get_vertices():
             vertex.draw(painter, palette, self.is_directed(), self.is_weighted())
 
