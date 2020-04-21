@@ -416,9 +416,7 @@ class DrawableNode(Drawable, Selectable, Node):
         self.position: Vector = position
 
         Drawable.__init__(self)
-        Selectable.__init__(
-            self, callback=lambda v: self.__selected() if v else self.__deselect()
-        )
+        Selectable.__init__(self, callback=self.set_default_color)
         Node.__init__(self, *args, **kwargs)
 
         self.forces: List[Vector] = []
@@ -431,13 +429,15 @@ class DrawableNode(Drawable, Selectable, Node):
         # whether it's currently selected or not
         self.selected = False
 
-    def __selected(self):
-        """Callback function for a node being selected."""
-        self.brush.color = BACKGROUND
+    def set_default_color(self, value=None):
+        """(re)set the color to the appropriate one, depending on selected."""
+        if value is None:
+            value = self.is_selected()
 
-    def __deselect(self):
-        """Callback function for a node being deselected."""
-        self.brush.color = DEFAULT
+        if value:
+            self.brush.color = BACKGROUND
+        else:
+            self.brush.color = DEFAULT
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
@@ -529,9 +529,7 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
     def __init__(self, *args, **kwargs):
         Drawable.__init__(self)
-        Selectable.__init__(
-            self, callback=lambda v: self.__selected() if v else self.__deselect()
-        )
+        Selectable.__init__(self, callback=self.set_default_color)
         Vertex.__init__(self, *args, **kwargs)
 
     def draw(
@@ -587,15 +585,17 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
             painter.restore()
 
-    def __selected(self):
-        """Callback function for a node being selected."""
-        self.font_pen.color = DEFAULT
-        self.brush.color = BACKGROUND
+    def set_default_color(self, value=None):
+        """(re)set the color to the appropriate one, depending on selected."""
+        if value is None:
+            value = self.is_selected()
 
-    def __deselect(self):
-        """Callback function for a node being deselected."""
-        self.font_pen.color = BACKGROUND
-        self.brush.color = DEFAULT
+        if value:
+            self.font_pen.color = DEFAULT
+            self.brush.color = BACKGROUND
+        else:
+            self.font_pen.color = BACKGROUND
+            self.brush.color = DEFAULT
 
     def _get_weight_box(self, directed) -> QRectF:
         """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
