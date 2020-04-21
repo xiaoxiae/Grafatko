@@ -678,9 +678,13 @@ class DrawableGraph(Drawable, Graph):
         for node in self.get_nodes():
             node.draw(painter, palette, self.show_labels)
 
-    def get_selected(self) -> List[DrawableNode]:
-        """Yield all currently selected nodes."""
-        return [node for node in self.get_nodes() if node.is_selected()]
+    def get_selected_nodes(self) -> List[DrawableNode]:
+        """Return a list of all currently selected nodes."""
+        return [n for n in self.get_nodes() if n.is_selected()]
+
+    def get_selected_vertices(self) -> List[DrawableVertex]:
+        """Return a list of all currently selected nodes."""
+        return [v for v in self.get_vertices() if v.is_selected()]
 
     def set_show_labels(self, value: bool):
         """Whether to show the node labels or not."""

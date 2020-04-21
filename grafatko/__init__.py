@@ -110,7 +110,7 @@ class Canvas(QWidget):
                     n1.evaluate_forces()
 
         # if space is being pressed, center around the currently selected nodes
-        if self.keyboard.space.pressed() and len(ns := self.graph.get_selected()) != 0:
+        if self.keyboard.space.pressed() and len(ns := self.graph.get_selected_nodes()) != 0:
             self.transformation.center(Vector.average([n.get_position() for n in ns]))
 
         super().update(*args)
@@ -148,14 +148,14 @@ class Canvas(QWidget):
 
     def start_shift_dragging_nodes(self):
         """Start dragging nodes that are weakly connected to some selected nodes."""
-        selected = self.graph.get_selected()
+        selected = self.graph.get_selected_nodes()
         for n in self.graph.get_weakly_connected(*selected):
             if not n.is_dragged() and n not in selected:
                 n.start_drag(self.mouse.get_position())
 
     def stop_shift_dragging_nodes(self):
         """Stop dragging nodes that are weakly connected to some selected nodes."""
-        selected = self.graph.get_selected()
+        selected = self.graph.get_selected_nodes()
         for n in self.graph.get_weakly_connected(*selected):
             if n.is_dragged() and n not in selected:
                 n.stop_drag()
@@ -168,13 +168,17 @@ class Canvas(QWidget):
         if key is self.keyboard.r:
             if self.graph.get_root() is not None:
                 self.graph.set_root(None)
-            elif len(selected := self.graph.get_selected()) == 1:
+            elif len(selected := self.graph.get_selected_nodes()) == 1:
                 self.graph.set_root(selected[0])
 
         # delete selected nodes on del press
         if key is self.keyboard.delete:
-            for node in self.graph.get_selected():
+            for node in self.graph.get_selected_nodes():
                 self.graph.remove_node(node)
+
+            for vertex in self.graph.get_selected_vertices():
+                self.graph.remove_vertex(vertex[0], vertex[1])
+
 
         elif key is self.keyboard.shift and self.mouse.left.pressed():
             self.start_shift_dragging_nodes()
@@ -204,7 +208,7 @@ class Canvas(QWidget):
         # stop dragging the nodes, if left is released
         if key is self.mouse.left:
             self.stop_shift_dragging_nodes()
-            for node in self.graph.get_selected():
+            for node in self.graph.get_selected_nodes():
                 node.stop_drag()
 
     def mousePressEvent(self, event):
@@ -222,7 +226,7 @@ class Canvas(QWidget):
                 self.select(pressed_node)
 
                 # start dragging the nodes
-                for node in self.graph.get_selected():
+                for node in self.graph.get_selected_nodes():
                     node.start_drag(self.mouse.get_position())
 
                 # also start dragging other nodes if shift is pressed
@@ -238,7 +242,7 @@ class Canvas(QWidget):
                 self.graph.deselect_all()
 
         elif key is self.mouse.right:
-            selected = self.graph.get_selected()
+            selected = self.graph.get_selected_nodes()
 
             if pressed_node is None:
                 # if there isn't a node at the position, create a new one, connect
@@ -261,15 +265,15 @@ class Canvas(QWidget):
 
         # rotate nodes on shift press
         if self.keyboard.shift.pressed():
-            if len(selected := self.graph.get_selected()) != 0:
-                nodes = self.graph.get_weakly_connected(*self.graph.get_selected())
+            if len(selected := self.graph.get_selected_nodes()) != 0:
+                nodes = self.graph.get_weakly_connected(*self.graph.get_selected_nodes())
                 pivot = Vector.average([n.get_position() for n in selected])
                 self.rotate_about(nodes, delta, pivot)
 
         # zoom on canvas on not shift press
         else:
             # if some nodes are being centered on, don't use mouse
-            nodes = self.graph.get_selected()
+            nodes = self.graph.get_selected_nodes()
             if self.keyboard.space.pressed() and len(nodes) != 0:
                 positions = [p.get_position() for p in nodes]
                 self.transformation.zoom(Vector.average(positions), delta)
