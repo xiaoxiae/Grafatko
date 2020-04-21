@@ -543,6 +543,8 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
         # special case for a loop
         if self[0] is self[1]:
+            painter.setBrush(Brush.empty()(palette))
+
             # draw the ellipse that symbolizes a loop
             center = self[0].get_position() - Vector(0.5, 1)
             painter.drawEllipse(QPointF(*center), 0.5, 0.5)
