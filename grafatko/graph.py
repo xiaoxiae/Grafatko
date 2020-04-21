@@ -27,8 +27,8 @@ class Node:
         self.label = label
 
         # don't allow empty labels (makes problems)
-        if label is not None and len(label) == 0:
-            label = None
+        if self.label is not None and len(self.label) == 0:
+            self.label = None
 
     def get_adjacent_vertices(self) -> Set[Vertex]:
         """Returns a set of vertices adjacent to this one."""
