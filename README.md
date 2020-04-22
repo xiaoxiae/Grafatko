@@ -5,10 +5,9 @@ An app for creating and visualizing graphs and graph-related algorithms.
 
 ## Running Grafátko
 First, install the app by running `pip install grafatko`.
-Then you can simply run `grafatko` from a terminal of your choice.
+Then you can simply run the `grafatko` command from a terminal of your choice.
 
 ## Controls
-The following section describes the control of the app.
 
 ### Mouse
 - **right button** creates new nodes/vertices

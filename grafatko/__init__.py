@@ -6,6 +6,8 @@ from functools import partial
 from random import random
 
 from PyQt5.QtWidgets import *
+from PyQt5.QtGui import *
+
 from qtmodern import styles
 
 from grafatko.controls import *
@@ -568,6 +570,7 @@ class Grafatko(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_menu)
 
         # WINDOW SETTINGS
+        self.setWindowIcon(QIcon('icon.ico'))
         self.show()
 
     def keyPressEvent(self, event):
