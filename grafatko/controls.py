@@ -25,7 +25,7 @@ class Pressable:
 
 
 class PressableCollection:
-    """A set of Pressable objects, whose state can be updated."""
+    """A dictionary of Pressable objects."""
 
     def __init__(self, keys: Sequence[Tuple[int, str]]):
         # initialize the properties and key dict

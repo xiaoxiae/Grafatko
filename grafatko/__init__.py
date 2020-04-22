@@ -336,7 +336,6 @@ class Canvas(QWidget):
         """Select the given node/vertex."""
         # only select one when shift is not pressed
         if not self.keyboard.shift.pressed() and not override_shift:
-            print("wow")
             self.graph.deselect_all()
 
         # else just select it
@@ -403,14 +402,26 @@ class Canvas(QWidget):
 
         if not path.endswith(".py"):
             QMessageBox.critical(self, "Error!", "The file must be a Python program.")
+            return
 
-        # TODO exceptions
-        filename = os.path.basename(path)[:-3]
-        cls = SourceFileLoader(filename, path).load_module()
-        getattr(cls, filename)(self.graph, self)
+        # TODO improve messages
+        try:
+            filename = os.path.basename(path)[:-3]
+            cls = SourceFileLoader(filename, path).load_module()
+            getattr(cls, filename)(self.graph)
+        except AssertionError as e:
+            QMessageBox.critical(self, "Error!", str(e))
+        except AttributeError as e:
+            QMessageBox.critical(self, "Error!", f"Function '{filename}' not found.")
+        except Exception as e:
+            QMessageBox.critical(
+                self,
+                "Error!",
+                f"An error occurred when running the algorithm.\n\n---\n{e}\n---",
+            )
 
 
-class GraphVisualizer(QMainWindow):
+class Grafatko(QMainWindow):
     def __init__(self):
         # TODO: hide toolbar and dock with f-10 or something
         # TODO undo, redo
@@ -471,14 +482,17 @@ class GraphVisualizer(QMainWindow):
         self.help_menu.addActions(
             [
                 QAction(
-                    "&Manual",
-                    self,
-                    triggered=lambda: QMessageBox.information(self, "Manual", "..."),
-                ),
-                QAction(
                     "&About",
                     self,
-                    triggered=lambda: QMessageBox.information(self, "About", "..."),
+                    triggered=lambda: QMessageBox.information(
+                        self,
+                        "About",
+                        "This application was created as a semester project for a "
+                        "programming class at <a href='https://www.mff.cuni.cz/en'>MFF UK</a> "
+                        "by Tomáš Sláma. It's open source (see the tab below) and licensed "
+                        "under MIT, so do as you please with the code and anything else "
+                        "related to the project.",
+                    ),
                 ),
                 QAction(
                     "&Source Code",
@@ -494,8 +508,8 @@ class GraphVisualizer(QMainWindow):
 
         # algorithm menu
         self.help_menu = self.menubar.addMenu("&Algorithms")
-        self.help_menu.addActions(
-            [QAction("&Run", self, triggered=self.canvas.run_algorithm,),]
+        self.help_menu.addAction(
+            QAction("&Run", self, triggered=self.canvas.run_algorithm)
         )
 
         ## Dock
@@ -566,7 +580,7 @@ class GraphVisualizer(QMainWindow):
 def run():
     """An entry point to the GUI."""
     app = QApplication(sys.argv)
-    ex = GraphVisualizer()
+    ex = Grafatko()
     sys.exit(app.exec_())
 
 

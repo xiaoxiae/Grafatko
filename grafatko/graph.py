@@ -663,7 +663,7 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
             # the distance from the center of the node to the side of the ellipse that
             # is drawn to symbolize the loop
             offset = Vector(0.5, 1) + Vector(0.5, 0).rotated(radians(45))
-            mid = self.__get_position() - offset
+            mid = self.__get_position()[0] - offset
         else:
             mid = Vector.average(self.__get_position(directed))
 
@@ -715,12 +715,6 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
         return start, end
 
 
-@dataclass
-class AnimationTuple:
-    obj: Union[DrawableNode, DrawableVertex]
-    animation: ColorAnimation
-
-
 class DrawableGraph(Drawable, Graph):
     """A class for working with graphs that can be drawn."""
 
@@ -739,30 +733,35 @@ class DrawableGraph(Drawable, Graph):
         self.selected_changed: Callable = selected_changed
 
         # a queue of animations to be played out
-        self.animations: List[AnimationTuple] = []
+        self.animations: List[Tuple[Union[DrawableNode, DrawableVertex], ColorAnimation]] = []
+        self.default_duration = 1000
 
         Graph.__init__(self, *args, **kwargs)
 
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
-        # check for animations that have already finished and remove them
-        while len(self.animations) > 0 and self.animations[0].animation.has_finished():
-            self.animations.pop(0)
-
         # if there are no currently ongoing animations, start some!
-        if len(self.animations) != 0 and not self.animations[0].animation.has_started():
+        if len(self.animations) != 0:
             # activate multiple parallel or one non-parallel
             for i, animation_tuple in enumerate(self.animations):
-                # either the first one, or all (up to it) are parallel
-                obj = animation_tuple.obj
-                a = animation_tuple.animation
+                obj, a = animation_tuple
+
+                # break if started
+                if a.has_started():
+                    break
 
                 # set the color and start the animation
                 if (i == 0) or (a.is_parallel() and prev_a.is_parallel()):
                     obj.set_color(a)
                     a.start()
+                else:
+                    break
 
                 prev_a = a
+
+        # check for animations that have already finished and remove them
+        while len(self.animations) > 0 and self.animations[0][1].has_finished():
+            self.animations.pop(0)
 
         # first, draw all vertices
         for vertex in self.get_vertices():
@@ -776,7 +775,10 @@ class DrawableGraph(Drawable, Graph):
         self, obj: Union[DrawableNode, DrawableVertex], c1: Color, c2: Color, **kwargs
     ):
         """Change the color of a node or a vertex by creating an animation."""
-        self.animations.append(AnimationTuple(obj, ColorAnimation(c1, c2, **kwargs)))
+        self.animations.append((obj, ColorAnimation(c1, c2, **kwargs)))
+
+    def set_default_animation_duration(self, value):
+        ColorAnimation.set_default_duration(value)
 
     def select(self, obj: Union[DrawableNode, DrawawbleVertex]):
         """Select the specified node/vertex."""

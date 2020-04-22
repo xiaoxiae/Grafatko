@@ -108,11 +108,13 @@ class Brush(Colorable):
 class ColorAnimation(ColorGenerating):
     """A class for animating attribute transitions (color) when drawing the graph."""
 
+    default_duration = 1000
+
     def __init__(
         self,
         color_from: Color,
         color_to: Color,
-        duration: int = 1000,
+        duration: int = None,
         parallel: bool = False,
     ):
         self.curve = QEasingCurve()  # the curve by which to interpolate
@@ -124,11 +126,10 @@ class ColorAnimation(ColorGenerating):
         # whether the animation can be played in parallel or not
         self.parallel = parallel
 
-        # for tracking whether the animation has finished
-        self.finished = False
+        # for tracking whether the animation has started
         self.started = False
 
-        self.duration = duration
+        self.duration = duration or self.__class__.default_duration
         self.timer = QElapsedTimer()  # the timer to track the animation
 
     def __call__(self, palette: QPalette):
@@ -147,6 +148,10 @@ class ColorAnimation(ColorGenerating):
             color_from.blue() * (1 - v) + color_to.blue() * v,
         )
 
+    @classmethod
+    def set_default_duration(cls, value):
+        cls.default_duration = value
+
     def is_parallel(self):
         """Return True if the animation is parallel, else False."""
         return self.parallel
@@ -156,13 +161,9 @@ class ColorAnimation(ColorGenerating):
         self.timer.start()
         self.started = True
 
-    def __finished(self):
-        """Internal callback function for setting self.finished."""
-        self.finished = True
-
     def has_finished(self):
         """Return True if the animation finished, else False."""
-        return self.timer.elapsed() > self.duration
+        return self.has_started() and self.timer.elapsed() > self.duration
 
     def has_started(self):
         """Return True if the animation has started, else False."""
