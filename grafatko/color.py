@@ -2,37 +2,56 @@
 
 from __future__ import annotations
 from typing import *
+
 from dataclasses import dataclass
 
+from abc import *
 from PyQt5.QtGui import *
 from PyQt5.QtCore import *
 
 
-class Color:
-    """A class for generating QColors, given a QPalette. Done to be application theme
-    independent."""
+class ColorGenerating(ABC):
+    """A class that when called with a QPalette produces a QColor. Done to be
+    application theme independent"""
+
+    @abstractmethod
+    def __call__(self, palette: QPalette) -> QColor:
+        """Generate the color, given the palette and the color function."""
+        pass
+
+
+class Color(ColorGenerating):
+    """A class for generating QColors, given a QPalette."""
 
     def __init__(self, color_function: Callable[[QPalette], QColor]):
         self.color_function = color_function
 
     @classmethod
-    def text(self) -> Color:
+    def text(cls) -> Color:
         """The text color of the palette"""
         return Color(lambda palette: palette.text().color())
 
     @classmethod
-    def background(self) -> Color:
+    def background(cls) -> Color:
         """The background color of the palette."""
         return Color(lambda palette: palette.window().color())
 
     @classmethod
-    def selected(self) -> Color:
+    def red(cls) -> Color:
+        return Color(lambda _: QColor.fromRgb(255, 0, 0))
+
+    @classmethod
+    def green(cls) -> Color:
+        return Color(lambda _: QColor.fromRgb(0, 255, 0))
+
+    @classmethod
+    def blue(cls) -> Color:
+        return Color(lambda _: QColor.fromRgb(0, 0, 255))
+
+    @classmethod
+    def selected(cls) -> Color:
         """The text color of things that are selected."""
         return Color(lambda palette: palette.alternateBase().color())
-
-    def __call__(self, palette: QPalette) -> QColor:
-        """Generate the color, given the palette and the color function."""
-        return self.color_function(palette)
 
     def lighter(self, coefficient: float) -> Color:
         """Return a Color object that is lighter than the current one by a coefficient."""
@@ -41,6 +60,10 @@ class Color:
     def darker(self, coefficient: float) -> Color:
         """Return a Color object that is darker than the current one by a coefficient."""
         return Color(lambda palette: self.color_function(palette).darker(coefficient))
+
+    def __call__(self, palette: QPalette) -> QColor:
+        """Generated from the simple color function of the class."""
+        return self.color_function(palette)
 
 
 @dataclass
@@ -82,32 +105,36 @@ class Brush(Colorable):
         return lambda _: Qt.NoBrush
 
 
-class ColorAnimation:
+class ColorAnimation(ColorGenerating):
     """A class for animating attribute transitions (color) when drawing the graph."""
 
     def __init__(
-        self, start: Color, end: Color, duration: int = 200, parallel: bool = False
+        self,
+        color_from: Color,
+        color_to: Color,
+        duration: int = 1000,
+        parallel: bool = False,
     ):
         self.curve = QEasingCurve()  # the curve by which to interpolate
 
         # key values
-        self.start = start
-        self.end = end
+        self.color_from = color_from
+        self.color_to = color_to
 
         # whether the animation can be played in parallel or not
         self.parallel = parallel
 
         # for tracking whether the animation has finished
         self.finished = False
+        self.started = False
 
         self.duration = duration
         self.timer = QElapsedTimer()  # the timer to track the animation
-        self.timer.start()
 
     def __call__(self, palette: QPalette):
         """Return the current interpolated value of the animation."""
-        start = self.start(palette)
-        end = self.end(palette)
+        color_from = self.color_from(palette)
+        color_to = self.color_to(palette)
 
         # get the curve value
         v = self.curve.valueForProgress(self.timer.elapsed() / self.duration)
@@ -115,10 +142,19 @@ class ColorAnimation:
 
         # return the interpolated color
         return QColor.fromRgb(
-            start.red() * v + end.red() * (1 - v),
-            start.green() * v + end.green() * (1 - v),
-            start.blue() * v + end.blue() * (1 - v),
+            color_from.red() * (1 - v) + color_to.red() * v,
+            color_from.green() * (1 - v) + color_to.green() * v,
+            color_from.blue() * (1 - v) + color_to.blue() * v,
         )
+
+    def is_parallel(self):
+        """Return True if the animation is parallel, else False."""
+        return self.parallel
+
+    def start(self):
+        """Start the animation."""
+        self.timer.start()
+        self.started = True
 
     def __finished(self):
         """Internal callback function for setting self.finished."""
@@ -126,4 +162,8 @@ class ColorAnimation:
 
     def has_finished(self):
         """Return True if the animation finished, else False."""
-        return self.elapsed() > self.duration
+        return self.timer.elapsed() > self.duration
+
+    def has_started(self):
+        """Return True if the animation has started, else False."""
+        return self.started

@@ -1,6 +1,7 @@
 import os
 import sys
 import webbrowser
+from importlib.machinery import SourceFileLoader
 from functools import partial
 from random import random
 
@@ -31,7 +32,7 @@ class Canvas(QWidget):
         # TODO: add a mouse select thingy for selecting multiple nodes
 
         # GRAPH
-        self.graph = DrawableGraph(selection_changed=self.selection_changed)
+        self.graph = DrawableGraph(selected_changed=self.selected_changed)
 
         # CANVAS STUFF
         self.transformation = Transformation(self)
@@ -138,7 +139,7 @@ class Canvas(QWidget):
                 for v in selected:
                     v.set_weight(weight)
 
-    def selection_changed(self):
+    def selected_changed(self):
         """Called when something in the graph gets selected/deselected."""
         selected = self.graph.get_selected_objects()
 
@@ -191,6 +192,7 @@ class Canvas(QWidget):
     def start_shift_dragging_nodes(self):
         """Start dragging nodes that are weakly connected to some selected nodes."""
         selected = self.graph.get_selected_nodes()
+
         for n in self.graph.get_weakly_connected(*selected):
             if not n.is_dragged() and n not in selected:
                 n.start_drag(self.mouse.get_position())
@@ -198,6 +200,7 @@ class Canvas(QWidget):
     def stop_shift_dragging_nodes(self):
         """Stop dragging nodes that are weakly connected to some selected nodes."""
         selected = self.graph.get_selected_nodes()
+
         for n in self.graph.get_weakly_connected(*selected):
             if n.is_dragged() and n not in selected:
                 n.stop_drag()
@@ -274,9 +277,10 @@ class Canvas(QWidget):
                 if self.keyboard.shift.pressed():
                     self.start_shift_dragging_nodes()
 
+            # if we hit vertices, select them
             elif len(pressed_vertices) != 0:
                 for i, pressed_vertex in enumerate(pressed_vertices):
-                    self.select(pressed_vertex, i > 0)
+                    self.select(pressed_vertex)
 
             # else de-select when shift is not pressed
             elif not self.keyboard.shift.pressed():
@@ -328,14 +332,15 @@ class Canvas(QWidget):
         for node in nodes:
             node.set_position(node.get_position().rotated(angle, pivot), True)
 
-    def select(self, thing: DrawableNode, override_shift=False):
-        """Select the given thingy."""
+    def select(self, obj: Union[DrawableNode, DrawableVertex], override_shift=False):
+        """Select the given node/vertex."""
         # only select one when shift is not pressed
         if not self.keyboard.shift.pressed() and not override_shift:
+            print("wow")
             self.graph.deselect_all()
 
         # else just select it
-        thing.select()
+        self.graph.select(obj)
 
     def get_graph(self):
         """Get the current graph."""
@@ -396,7 +401,13 @@ class Canvas(QWidget):
         if path == "":
             return
 
-        # TODO
+        if not path.endswith(".py"):
+            QMessageBox.critical(self, "Error!", "The file must be a Python program.")
+
+        # TODO exceptions
+        filename = os.path.basename(path)[:-3]
+        cls = SourceFileLoader(filename, path).load_module()
+        getattr(cls, filename)(self.graph, self)
 
 
 class GraphVisualizer(QMainWindow):

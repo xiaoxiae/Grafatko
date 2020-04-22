@@ -34,20 +34,20 @@ class Node:
         """Returns a set of vertices adjacent to this one."""
         return self.adjacent
 
-    def get_adjacent_nodes(self) -> List[Node]:
+    def get_adjacent_nodes(self) -> Set[Node]:
         """Returns a list of nodes adjacent to this one."""
-        return [v[1] for v in self.adjacent]
+        return {v[1] for v in self.adjacent}
 
     def is_adjacent_to(self, node: Node) -> bool:
         """Return True if this node is adjacent to the specified node."""
         return node in self.get_adjacent_nodes()
 
     def _remove_adjacent_node(self, node: Node):
-        """Remove an adjacent node (if it's there). Package-private."""
+        """Remove an adjacent node (if it's there)."""
         self.adjacent = {v for v in self.adjacent if v[1] is not node}
 
-    def _add_adjacent(self, vertex: Vertex):
-        """Add an adjacent vertex. Package-private."""
+    def _add_adjacent_vertex(self, vertex: Vertex):
+        """Add an adjacent vertex."""
         self.adjacent.add(vertex)
 
 
@@ -75,6 +75,14 @@ class Vertex:
         else:
             raise IndexError("Only indexes 0 and 1 are supported.")
 
+    def __eq__(self, other: Vertex):
+        """Define vertex equality as the equality of both nodes."""
+        return self[0] is other[0] and self[1] is other[1]
+
+    def __hash__(self):
+        """The hash is the identity of the object."""
+        return id(self)
+
     def get_weight(self) -> float:
         """Return the weight of the vertex."""
         return self.weight
@@ -82,6 +90,10 @@ class Vertex:
     def set_weight(self, value: float):
         """Set the weight of the vertex."""
         self.weight = value
+
+    def is_loop(self):
+        """Return True if the given vertex is a loop."""
+        return self[0] is self[1]
 
 
 class Graph:
@@ -112,7 +124,7 @@ class Graph:
 
             for node in self.get_nodes():
                 # the current set of nodes that we know are reachable from one another
-                component = set([node] + node.get_adjacent_nodes())
+                component = set([node] + list(node.get_adjacent_nodes()))
 
                 i = 0
                 while i < len(self.components):
@@ -176,7 +188,7 @@ class Graph:
     def get_weight(self, n1: Node, n2: Node) -> Optional[Union[int, float]]:
         """Return the weight of the specified vertex (and None if they're not connected)."""
         for vertex in self.get_vertices():
-            if n1 is vertex[0] and n2 is vertex[1]:
+            if Vertex(n1, n2) == vertex:
                 return vertex.get_weight()
 
     def get_nodes(self) -> List[Node]:
@@ -246,27 +258,26 @@ class Graph:
         # create the object, adding it to vertices
         vertex = self.vertex_class(n1, n2, weight, **kwargs)
         self.vertices.append(vertex)
-        n1._add_adjacent(vertex)
+        n1._add_adjacent_vertex(vertex)
 
         # add it one/both ways, depending on whether the graph is directed or not
         if not self.is_directed():
             vertex = self.vertex_class(n2, n1, weight, **kwargs)
             self.vertices.append(vertex)
-            n2._add_adjacent(vertex)
+            n2._add_adjacent_vertex(vertex)
 
     @recalculate_components
     def remove_vertex(self, n1: Node, n2: Node):
         """Removes a vertex from node n1 to node n2 (and vice versa, if it's not 
         directed). Only does so if the given vertex exists."""
         # remove it one-way if the graph is directed and both if it's not
-        self.vertices = [
-            v
-            for v in self.vertices
-            if not (
-                (n1 is v[0] and n2 is v[1])
-                or (not self.is_directed() and n2 is v[0] and n1 is v[1])
-            )
-        ]
+        i = 0
+        while i < len(self.vertices):
+            v = self.vertices[i]
+            if (n1, n2) == v or (not self.is_directed() and (n2, n1) == v):
+                del self.vertices[i]
+            else:
+                i += 1
 
         # see above comment
         n1._remove_adjacent_node(n2)
@@ -383,49 +394,65 @@ class Graph:
 class Drawable(ABC):
     """Something that can be drawn on the PyQt5 canvas."""
 
+    @abstractmethod
+    def draw(self, painter: QPainter, palette: QPalette, *args, **kwargs):
+        """Draws the object on the canvas. Takes the painter to paint on and the palette
+        to generate relative colors from."""
+        pass
+
+
+class Paintable:
+    """Has a brush and a pen to be drawn on the painter.
+
+    TODO: Might not be a good name choice."""
+
     def __init__(self, pen: Pen = None, brush: Brush = None, font_pen: Pen = None):
         self.pen = pen or Pen()
         self.brush = brush or Brush()
         self.font_pen = font_pen or Pen()
 
     @abstractmethod
-    def draw(self, painter: QPainter, palette: QPalette, *args, **kwargs):
-        """A method that draws the object on the canvas. Takes the painter to paint on
-        and the palette to generate relative colors from."""
+    def set_color(self, color: ColorGenerating, *args, **kwargs):
+        """Sets the primary color of the drawable. Needs to be user defined, because
+        it might be the pen or the brush -- it varies from class to class"""
+        pass
+
+    @abstractmethod
+    def get_color(self, *args, **kwargs):
+        pass
+
+    def set_font_color(self, color: ColorGenerating, *args, **kwargs):
+        self.font_pen.set_color(color)
+
+    def get_font_color(self) -> ColorGenerating:
+        return self.font_pen.get_color()
 
 
 class Selectable:
     """Something that can be selected."""
 
-    def __init__(self, callback=None):
-        self.callback = callback
+    def __init__(self):
         self.selected = False
-
-        self.callback(self.selected)  # call the callback with false by default
 
     def select(self):
         """Mark the node as selected."""
         self.selected = True
-        self.callback(self.selected)
 
     def deselect(self):
         """Mark the node as not selected."""
         self.selected = False
-        self.callback(self.selected)
+
+    def set_selected(self, value: bool):
+        self.selected = value
 
     def is_selected(self) -> bool:
         """Return, whether the node is selected or not."""
         return self.selected
 
 
-class DrawableNode(Drawable, Selectable, Node):
+class DrawableNode(Drawable, Paintable, Selectable, Node):
     def __init__(self, *args, position=Vector(0, 0), **kwargs):
-        self.selected_callback = None
         self.position: Vector = position
-
-        Drawable.__init__(self)
-        Selectable.__init__(self, callback=self.set_default_color)
-        Node.__init__(self, *args, **kwargs)
 
         self.forces: List[Vector] = []
 
@@ -434,23 +461,28 @@ class DrawableNode(Drawable, Selectable, Node):
         # it's the offset from the mouse when the drag started
         self.drag: Optional[Vector] = None
 
-    def set_selected_callback(self, callback: Callable):
-        self.selected_callback = callback
+        Paintable.__init__(self)
+        Selectable.__init__(self)
+        Node.__init__(self, *args, **kwargs)
 
-    def set_default_color(self, value=None):
-        """(re)set the color to the appropriate one, depending on selected."""
-        if value is None:
-            value = self.is_selected()
+        # change to the default colors
+        self.change_color_to_selected()
 
-        if value:
-            self.brush.set_color(Color.background())
-            self.font_pen.set_color(Color.text())
+    def change_color_to_selected(self):
+        """(re)set the color to the appropriate one, depending on whether the node
+        is selected or not."""
+        if self.is_selected():
+            self.set_color(Color.background())
+            self.set_font_color(Color.text())
         else:
-            self.brush.set_color(Color.text())
-            self.font_pen.set_color(Color.background())
+            self.set_color(Color.text())
+            self.set_font_color(Color.background())
 
-        if self.selected_callback is not None:
-            self.selected_callback()
+    def set_color(self, color: ColorGenerating):
+        self.brush.set_color(color)
+
+    def get_color(self) -> ColorGenerating:
+        return self.brush.get_color()
 
     def get_position(self) -> Vector:
         """Return the position of the node."""
@@ -530,7 +562,7 @@ class DrawableNode(Drawable, Selectable, Node):
             painter.restore()
 
 
-class DrawableVertex(Drawable, Selectable, Vertex):
+class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
     arrowhead_size: Final[float] = 0.5  # how big is the head triangle
     arrow_separation: Final[float] = pi / 7  # how far apart are two-way vertices
     loop_arrowhead_angle: Final[float] = -30.0  # an angle for the head in a loop
@@ -538,14 +570,26 @@ class DrawableVertex(Drawable, Selectable, Vertex):
     # possible TODO: compute this programatically
     text_scale: Final[float] = 0.04  # the constant by which to scale down the font
 
-    def __init__(self, *args, selected_callback: Callable = None, **kwargs):
-        self.selected_callback = selected_callback
-
-        Drawable.__init__(self)
-        Selectable.__init__(self, callback=self.set_default_color)
-        Vertex.__init__(self, *args, **kwargs)
+    def __init__(self, *args, **kwargs):
 
         self.font: QFont = None  # the font that is used to draw the weights
+
+        Paintable.__init__(self)
+        Selectable.__init__(self)
+        Vertex.__init__(self, *args, **kwargs)
+
+        # change to the default colors
+        self.change_color_to_selected()
+
+    def change_color_to_selected(self):
+        """(re)set the color to the appropriate one, depending on whether the vertex
+        is selected or not."""
+        if self.is_selected():
+            self.set_color(Color.background())
+            self.set_font_color(Color.text())
+        else:
+            self.set_color(Color.text())
+            self.set_font_color(Color.background())
 
     def draw(
         self, painter: QPainter, palette: QPalette, directed: bool, weighted: bool
@@ -557,7 +601,7 @@ class DrawableVertex(Drawable, Selectable, Vertex):
         painter.setBrush(self.brush(palette))
 
         # special case for a loop
-        if self[0] is self[1]:
+        if self.is_loop():
             painter.setBrush(Brush.empty()(palette))
 
             # draw the ellipse that symbolizes a loop
@@ -602,20 +646,11 @@ class DrawableVertex(Drawable, Selectable, Vertex):
 
             painter.restore()
 
-    def set_default_color(self, value=None):
-        """(re)set the color to the appropriate one, depending on selected."""
-        if value is None:
-            value = self.is_selected()
+    def set_color(self, color: ColorGenerating):
+        self.brush.set_color(color)
 
-        if value:
-            self.font_pen.set_color(Color.text())
-            self.brush.set_color(Color.background())
-        else:
-            self.font_pen.set_color(Color.background())
-            self.brush.set_color(Color.text())
-
-        if self.selected_callback is not None:
-            self.selected_callback()
+    def get_color(self) -> ColorGenerating:
+        return self.brush.get_color()
 
     def _get_weight_box(self, directed) -> QRectF:
         """Get the rectangle that the weight of n1->n2 vertex will be drawn in."""
@@ -624,11 +659,11 @@ class DrawableVertex(Drawable, Selectable, Vertex):
         r = metrics.boundingRect(str(self.get_weight()))
 
         # get the mid point of the weight box, depending on whether it's a loop or not
-        if self[0] is self[1]:
+        if self.is_loop():
             # the distance from the center of the node to the side of the ellipse that
             # is drawn to symbolize the loop
             offset = Vector(0.5, 1) + Vector(0.5, 0).rotated(radians(45))
-            mid = self[0].get_position() - offset
+            mid = self.__get_position() - offset
         else:
             mid = Vector.average(self.__get_position(directed))
 
@@ -654,8 +689,12 @@ class DrawableVertex(Drawable, Selectable, Vertex):
             QPointF(*(position + (-uv).rotated(radians(-30)) * self.arrowhead_size)),
         )
 
-    def __get_position(self, directed: bool) -> Tuple[Vector, Vector]:
+    def __get_position(self, directed: bool = False) -> Tuple[Vector, Vector]:
         """Return the starting and ending position of the vertex on the screen."""
+        # special case for a loop
+        if self.is_loop():
+            return (self[0].get_position(), self[1].get_position())
+
         # positions of the nodes
         from_pos = Vector(*self[0].get_position())
         to_pos = Vector(*self[1].get_position())
@@ -676,13 +715,19 @@ class DrawableVertex(Drawable, Selectable, Vertex):
         return start, end
 
 
+@dataclass
+class AnimationTuple:
+    obj: Union[DrawableNode, DrawableVertex]
+    animation: ColorAnimation
+
+
 class DrawableGraph(Drawable, Graph):
     """A class for working with graphs that can be drawn."""
 
     vertex_class = DrawableVertex
     node_class = DrawableNode
 
-    def __init__(self, *args, selection_changed=None, **kwargs):
+    def __init__(self, *args, selected_changed: Callable[None] = None, **kwargs):
         self.show_labels: bool = False  # whether or not to show the labels of nodes
 
         # a dictionary for calculating the distance from a root node
@@ -690,14 +735,35 @@ class DrawableGraph(Drawable, Graph):
         self.distance_from_root = {}
         self.root = None
 
-        # called when something in the graph is selected/deselected
-        self.selection_changed: Callable = selection_changed
+        # callback when something in the graph is selected/deselected
+        self.selected_changed: Callable = selected_changed
 
-        Drawable.__init__(self)
+        # a queue of animations to be played out
+        self.animations: List[AnimationTuple] = []
+
         Graph.__init__(self, *args, **kwargs)
 
     def draw(self, painter: QPainter, palette: QPalette):
         """Draw the entire graph."""
+        # check for animations that have already finished and remove them
+        while len(self.animations) > 0 and self.animations[0].animation.has_finished():
+            self.animations.pop(0)
+
+        # if there are no currently ongoing animations, start some!
+        if len(self.animations) != 0 and not self.animations[0].animation.has_started():
+            # activate multiple parallel or one non-parallel
+            for i, animation_tuple in enumerate(self.animations):
+                # either the first one, or all (up to it) are parallel
+                obj = animation_tuple.obj
+                a = animation_tuple.animation
+
+                # set the color and start the animation
+                if (i == 0) or (a.is_parallel() and prev_a.is_parallel()):
+                    obj.set_color(a)
+                    a.start()
+
+                prev_a = a
+
         # first, draw all vertices
         for vertex in self.get_vertices():
             vertex.draw(painter, palette, self.is_directed(), self.is_weighted())
@@ -705,6 +771,29 @@ class DrawableGraph(Drawable, Graph):
         # then, draw all nodes
         for node in self.get_nodes():
             node.draw(painter, palette, self.show_labels)
+
+    def change_color(
+        self, obj: Union[DrawableNode, DrawableVertex], c1: Color, c2: Color, **kwargs
+    ):
+        """Change the color of a node or a vertex by creating an animation."""
+        self.animations.append(AnimationTuple(obj, ColorAnimation(c1, c2, **kwargs)))
+
+    def select(self, obj: Union[DrawableNode, DrawawbleVertex]):
+        """Select the specified node/vertex."""
+        self.__change_selected_value(obj, True)
+
+    def deselect(self, obj: Union[DrawableNode, DrawawbleVertex]):
+        """Deselect the specified node/vertex."""
+        self.__change_selected_value(obj, False)
+
+    def __change_selected_value(self, obj, value):
+        obj.set_selected(value)
+
+        # don't change the object's color when an animation is being played
+        if len(self.animations) == 0:
+            obj.change_color_to_selected()
+
+        self.selected_changed()
 
     def get_selected_nodes(self) -> List[DrawableNode]:
         """Return a list of all currently selected nodes."""
@@ -767,7 +856,7 @@ class DrawableGraph(Drawable, Graph):
 
     @recalculate_distance_to_root
     def add_vertex(self, *args, **kwargs):
-        super().add_vertex(*args, selected_callback=self.selection_changed, **kwargs)
+        super().add_vertex(*args, **kwargs)
 
     @recalculate_distance_to_root
     def remove_vertex(self, *args, **kwargs):
@@ -776,7 +865,6 @@ class DrawableGraph(Drawable, Graph):
     @recalculate_distance_to_root
     def add_node(self, node: DrawableNode):
         super().add_node(node)
-        node.set_selected_callback(self.selection_changed)
 
     @recalculate_distance_to_root
     def remove_node(self, node, **kwargs):
@@ -789,10 +877,10 @@ class DrawableGraph(Drawable, Graph):
     def deselect_all(self):
         """Deselect all nodes and vertices."""
         for node in self.get_nodes():
-            node.deselect()
+            self.deselect(node)
 
         for vertex in self.get_vertices():
-            vertex.deselect()
+            self.deselect(vertex)
 
     def node_at_position(self, position: Vector) -> Optional[DrawableNode]:
         """Returns a Node if there is one at the given position, else None."""

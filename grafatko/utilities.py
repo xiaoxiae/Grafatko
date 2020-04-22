@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 from typing import *
+
 from math import sqrt, sin, cos
 from dataclasses import *
 
@@ -23,7 +24,6 @@ class Vector:
     __repr__ = __str__
 
     def __len__(self):
-        """Defines the length of the vector as the number of its components."""
         return len(self.values)
 
     def __hash__(self):
@@ -31,35 +31,29 @@ class Vector:
         return hash(tuple(self))
 
     def __eq__(self, other: Vector):
-        """Defines vector equality as the equality of all of its components."""
         return self.values == other.values
 
     def __setitem__(self, i: int, value: Number):
-        """Sets the i-th vector component to the specified value."""
         self.values[i] = value
 
     def __getitem__(self, i: int):
-        """Either returns a new vector when sliced, or the i-th vector component."""
         return self.values[i]
 
     def __neg__(self):
-        """Defines vector negation as the negation of all of its components."""
         return Vector(*iter(-component for component in self))
 
     def __add__(self, other: Vector):
-        """Defines vector addition as the addition of each of their components."""
         return Vector(*iter(u + v for u, v in zip(self, other)))
 
     __iadd__ = __add__
 
     def __sub__(self, other: Vector):
-        """Defines vector subtraction as the subtraction of each of its components."""
-        return Vector(*iter(u - v for u, v in zip(self, other)))
+        return self + (-other)
 
     __isub__ = __sub__
 
     def __mul__(self, other: Vector):
-        """Defines scalar and dot multiplication of a vector."""
+        """Defines scalar and dot product of a vector."""
         if type(other) in get_args(Number):
             return Vector(*iter(component * other for component in self))
         else:
@@ -74,16 +68,6 @@ class Vector:
     def __floordiv__(self, other: Number):
         """Defines floor vector division by a scalar."""
         return Vector(*iter(component // other for component in self))
-
-    def __matmul__(self, other: Vector):
-        """Defines cross multiplication of a vector."""
-        return Vector(
-            self[1] * other[2] - self[2] * other[1],
-            self[2] * other[0] - self[0] * other[2],
-            self[0] * other[1] - self[1] * other[0],
-        )
-
-    __imatmul__ = __matmul__
 
     def magnitude(self):
         """Returns the magnitude of the vector."""
