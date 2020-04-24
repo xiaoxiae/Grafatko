@@ -772,10 +772,17 @@ class DrawableGraph(Drawable, Graph):
             node.draw(painter, palette, self.show_labels)
 
     def change_color(
-        self, obj: Union[DrawableNode, DrawableVertex], c1: Color, c2: Color, **kwargs
+        self, obj: Union[DrawableNode, DrawableVertex], c: Color, **kwargs
     ):
         """Change the color of a node or a vertex by creating an animation."""
-        self.animations.append((obj, ColorAnimation(c1, c2, **kwargs)))
+        prev_c = obj.get_color()
+
+        # find the color that this object will have transformed to
+        for o, animation in self.animations:
+            if obj is o:
+                prev_c = animation.get_end_value()
+
+        self.animations.append((obj, ColorAnimation(prev_c, c, **kwargs)))
 
     def set_default_animation_duration(self, value):
         ColorAnimation.set_default_duration(value)

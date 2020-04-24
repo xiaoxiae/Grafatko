@@ -570,7 +570,8 @@ class Grafatko(QMainWindow):
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_menu)
 
         # WINDOW SETTINGS
-        self.setWindowIcon(QIcon('icon.ico'))
+        self.setWindowIcon(QIcon("icon.ico"))
+        self.setWindowTitle("Grafátko")
         self.show()
 
     def keyPressEvent(self, event):

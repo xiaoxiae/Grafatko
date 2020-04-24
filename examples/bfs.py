@@ -28,23 +28,21 @@ def bfs(graph: DrawableGraph):
     # set node states and change colors accordingly
     for n in graph.get_nodes():
         state[n] = State.open if n in selected else State.unexplored
-        graph.change_color(n, n.get_color(), state[n].value, parallel=True)
+        graph.change_color(n, state[n].value, parallel=True)
 
     while len(queue) != 0:
         node = queue.pop(0)
-        graph.change_color(node, State.open.value, State.current.value)
+        graph.change_color(node, State.current.value)
 
         # search for unexplored neighbours
         for adjacent in node.get_adjacent_nodes():
             if state[adjacent] is State.unexplored:
                 queue.append(adjacent)
                 state[adjacent] = State.open
-                graph.change_color(
-                    adjacent, State.unexplored.value, State.open.value, parallel=True
-                )
+                graph.change_color(adjacent, State.open.value, parallel=True)
 
         # change the color from open to closed
-        graph.change_color(node, State.current.value, State.closed.value)
+        graph.change_color(node, State.closed.value)
         state[node] = State.closed
 
 
