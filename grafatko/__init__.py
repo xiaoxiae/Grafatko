@@ -567,6 +567,9 @@ class Grafatko(QMainWindow):
             (1, 4, 1, 1): QPushButton(
                 "resume", self, pressed=self.canvas.get_graph().resume_animations
             ),
+            (2, 3, 1, 2): QPushButton(
+                "clear", self, pressed=self.canvas.get_graph().clear_animations
+            ),
             (3, 0, 1, -1): self.line_edit,
         }
 

@@ -943,6 +943,15 @@ class DrawableGraph(Drawable, Graph):
         for _, animation in self.animations:
             animation.resume()
 
+    def clear_animations(self):
+        """Clear all graph animations."""
+        # clear animations
+        self.animations = []
+
+        # reset node colors
+        for obj in self.get_nodes() + self.get_vertices():
+            obj.change_color_to_selected()
+
     def to_asymptote(self) -> str:
         # TODO possible export option
         pass
