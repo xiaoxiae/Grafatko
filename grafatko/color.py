@@ -168,3 +168,7 @@ class ColorAnimation(ColorGenerating):
     def has_started(self):
         """Return True if the animation has started, else False."""
         return self.started
+        
+    def get_end_value(self):
+        """Return the end value of the animation."""
+        return self.color_to

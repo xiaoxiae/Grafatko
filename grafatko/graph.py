@@ -432,17 +432,19 @@ class Paintable:
     @abstractmethod
     def set_color(self, color: ColorGenerating, *args, **kwargs):
         """Sets the primary color of the drawable. Needs to be user defined, because
-        it might be the pen or the brush -- it varies from class to class"""
+        it might be the pen or the brush -- it varies from class to class."""
         pass
 
     @abstractmethod
     def get_color(self, *args, **kwargs):
         pass
 
-    def set_font_color(self, color: ColorGenerating, *args, **kwargs):
+    def set_font_color(self, color: ColorGenerating):
+        """Sets the font color."""
         self.font_pen.set_color(color)
 
     def get_font_color(self) -> ColorGenerating:
+        """Gets the font color."""
         return self.font_pen.get_color()
 
 
@@ -751,7 +753,9 @@ class DrawableGraph(Drawable, Graph):
         self.selected_changed: Callable = selected_changed
 
         # a queue of animations to be played out
-        self.animations: List[Tuple[Union[DrawableNode, DrawableVertex], ColorAnimation]] = []
+        self.animations: List[
+            Tuple[Union[DrawableNode, DrawableVertex], ColorAnimation]
+        ] = []
         self.default_duration = 1000
 
         Graph.__init__(self, *args, **kwargs)

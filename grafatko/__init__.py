@@ -128,7 +128,6 @@ class Canvas(QWidget):
         if type(selected[0]) is DrawableNode:
             selected[0].set_label(text)
         else:
-            # TODO make this code better?
             try:
                 weight = int(text)
             except:
@@ -145,9 +144,12 @@ class Canvas(QWidget):
         """Called when something in the graph gets selected/deselected."""
         selected = self.graph.get_selected_objects()
 
+        # if nothing is selected, let the user know
         if len(selected) == 0:
             self.line_edit.setReadOnly(True)
             self.line_edit.setText("Select a node or a vertex to edit.")
+
+        # else if more than two things are selected
         elif len(selected) >= 2 and not (
             type(selected[0]) is DrawableVertex
             and type(selected[1]) is DrawableVertex
@@ -156,6 +158,8 @@ class Canvas(QWidget):
         ):
             self.line_edit.setReadOnly(True)
             self.line_edit.setText("Select only one node or a vertex to edit.")
+
+        # else if one is, focus on it
         else:
             self.line_edit.setReadOnly(False)
 
