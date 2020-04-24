@@ -22,7 +22,7 @@ setup(
 
     # where to look for files
     packages=["grafatko"],
-    data_files=[("", ["LICENSE.txt", "README.md"])],
+    data_files=[("", ["LICENSE.txt", "README.md", "icon.ico", "DOCUMENTATION.md"])],
 
     entry_points={'console_scripts': ['grafatko=grafatko.__init__:run']},
 
