@@ -139,7 +139,7 @@ class Canvas(QWidget):
 
             if weight is not None:
                 for v in selected:
-                    v.set_weight(weight)
+                    self.graph.set_weight(v, weight)
 
     def selected_changed(self):
         """Called when something in the graph gets selected/deselected."""

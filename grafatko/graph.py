@@ -175,6 +175,12 @@ class Graph:
                     else:
                         self.add_vertex(neighbour, node)
 
+            # also, set all weights between to nodes to equal
+            for v1 in self.get_vertices():
+                for v2 in self.get_vertices():
+                    if v1 == (v2[1], v2[0]):
+                        v2.set_weight(v1.get_weight())
+
         self.directed = directed
 
     def is_weighted(self) -> bool:
@@ -184,6 +190,18 @@ class Graph:
     def set_weighted(self, value: bool):
         """Set, whether the graph is weighted or not."""
         self.weighted = value
+
+    def set_weight(self, vertex: Vertex, weight: float):
+        """Set the weight of the given vertex (both ways, if the graph is not oriented).
+        Only does so if the vertex exists."""
+        vertex.set_weight(weight)
+
+        if not self.is_directed():
+            # find the vertex that goes the other way
+            for v in self.get_vertices():
+                if v == (vertex[1], vertex[0]):
+                    v.set_weight(weight)
+                    break
 
     def get_weight(self, n1: Node, n2: Node) -> Optional[Union[int, float]]:
         """Return the weight of the specified vertex (and None if they're not connected)."""
