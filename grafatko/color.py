@@ -129,6 +129,10 @@ class ColorAnimation(ColorGenerating):
         # for tracking whether the animation has started
         self.started = False
 
+        # for tracking whether the animation is paused
+        self.paused = False
+        self.paused_time = 0
+
         self.duration = duration or self.__class__.default_duration
         self.timer = QElapsedTimer()  # the timer to track the animation
 
@@ -137,8 +141,11 @@ class ColorAnimation(ColorGenerating):
         color_from = self.color_from(palette)
         color_to = self.color_to(palette)
 
+        # get the time -- start with the paused value and add elapsed, if we're not paused
+        time = self.paused_time + (0 if self.is_paused() else self.timer.elapsed())
+
         # get the curve value
-        v = self.curve.valueForProgress(self.timer.elapsed() / self.duration)
+        v = self.curve.valueForProgress(time / self.duration)
         v = min(max(0, v), 1)  # restrict to a value from 0 to 1
 
         # return the interpolated color
@@ -150,6 +157,7 @@ class ColorAnimation(ColorGenerating):
 
     @classmethod
     def set_default_duration(cls, value):
+        """Set the default duration of animations being created."""
         cls.default_duration = value
 
     def is_parallel(self):
@@ -161,14 +169,39 @@ class ColorAnimation(ColorGenerating):
         self.timer.start()
         self.started = True
 
+    def pause(self):
+        """Pause the animation (if it's started and not paused already)."""
+        if self.has_started() and not self.is_paused():
+            self.paused = True
+            self.paused_time = self.timer.elapsed()
+
+    def is_paused(self):
+        """Return True if the animation is paused, else False."""
+        return self.paused
+
+    def resume(self):
+        """Resume the animation (if it's paused)."""
+        if self.has_started() and self.is_paused():
+            self.paused = False
+            self.timer.restart()
+
     def has_finished(self):
-        """Return True if the animation finished, else False."""
-        return self.has_started() and self.timer.elapsed() > self.duration
+        """Return True if the animation has finished, else False. It has to have
+        started, the time must have elapsed and it mustn't be currently paused."""
+        return (
+            self.has_started()
+            and (self.paused_time + self.timer.elapsed()) > self.duration
+            and not self.is_paused()
+        )
 
     def has_started(self):
         """Return True if the animation has started, else False."""
         return self.started
-        
+
+    def get_start_value(self):
+        """Return the start value of the animation."""
+        return self.color_from
+
     def get_end_value(self):
         """Return the end value of the animation."""
         return self.color_to

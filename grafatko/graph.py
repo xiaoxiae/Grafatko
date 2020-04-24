@@ -933,6 +933,16 @@ class DrawableGraph(Drawable, Graph):
 
         return vertices
 
+    def pause_animations(self):
+        """Pause all graph animations."""
+        for _, animation in self.animations:
+            animation.pause()
+
+    def resume_animations(self):
+        """Resume all graph animations."""
+        for _, animation in self.animations:
+            animation.resume()
+
     def to_asymptote(self) -> str:
         # TODO possible export option
         pass

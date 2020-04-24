@@ -560,6 +560,13 @@ class Grafatko(QMainWindow):
             (2, 2): QPushButton(
                 "reorient", self, pressed=self.canvas.get_graph().reorient
             ),
+            (0, 3, 1, 2): QLabel(self, text="Animations"),
+            (1, 3, 1, 1): QPushButton(
+                "pause", self, pressed=self.canvas.get_graph().pause_animations
+            ),
+            (1, 4, 1, 1): QPushButton(
+                "resume", self, pressed=self.canvas.get_graph().resume_animations
+            ),
             (3, 0, 1, -1): self.line_edit,
         }
 
