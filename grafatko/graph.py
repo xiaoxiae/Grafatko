@@ -8,6 +8,7 @@ from collections import defaultdict
 from math import radians, pi
 
 from grafatko.color import *
+from grafatko.animation import *
 from grafatko.utilities import *
 
 
@@ -543,37 +544,41 @@ class DrawableNode(Drawable, Paintable, Selectable, Node):
         painter.setBrush(self.brush(palette))
         painter.setPen(self.pen(palette))
 
-        # the radius is 1
+        # draw an ellipse with radius 1
         painter.drawEllipse(QPointF(*self.position), 1, 1)
 
         # possibly draw the label of the node
         if draw_label and self.get_label() is not None:
-            label = self.get_label()
-            mid = self.get_position()
+            self.__draw_label(painter, palette)
 
-            # get the rectangle that surrounds the label
-            r = QFontMetrics(painter.font()).boundingRect(label)
-            scale = 1.9 / Vector(r.width(), r.height()).magnitude()
+    def __draw_label(self, painter: QPainter, palette: QPalette):
+        """Draw the label of the node"""
+        label = self.get_label()
+        mid = self.get_position()
 
-            # draw it on the screen
-            size = Vector(r.width(), r.height()) * scale
-            rect = QRectF(*(mid - size / 2), *size)
+        # get the rectangle that surrounds the label
+        r = QFontMetrics(painter.font()).boundingRect(label)
+        scale = 1.9 / Vector(r.width(), r.height()).magnitude()
 
-            painter.save()
+        # draw it on the screen
+        size = Vector(r.width(), r.height()) * scale
+        rect = QRectF(*(mid - size / 2), *size)
 
-            painter.setPen(self.font_pen(palette))
+        painter.save()
 
-            # translate to top left and scale down to draw the actual text
-            painter.translate(rect.topLeft())
-            painter.scale(scale, scale)
+        painter.setPen(self.get_font_color()(palette))
 
-            painter.drawText(
-                QRectF(0, 0, rect.width() / scale, rect.height() / scale),
-                Qt.AlignCenter,
-                label,
-            )
+        # translate to top left and scale down to draw the actual text
+        painter.translate(rect.topLeft())
+        painter.scale(scale, scale)
 
-            painter.restore()
+        painter.drawText(
+            QRectF(0, 0, rect.width() / scale, rect.height() / scale),
+            Qt.AlignCenter,
+            label,
+        )
+
+        painter.restore()
 
 
 class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
@@ -954,4 +959,5 @@ class DrawableGraph(Drawable, Graph):
 
     def to_svg(self) -> str:
         # TODO possible export option
+        # https://stackoverflow.com/questions/57432570/generate-a-svg-file-with-pyqt5
         pass
