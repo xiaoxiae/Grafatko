@@ -482,17 +482,6 @@ class DrawableNode(Drawable, Paintable, Selectable, Node):
         Selectable.__init__(self)
         Node.__init__(self, *args, **kwargs)
 
-        # change to the default colors
-        self.change_color_to_selected()
-
-    def change_color_to_selected(self):
-        """(re)set the color to the appropriate one, depending on whether the node
-        is selected or not."""
-        if self.is_selected():
-            self.set_color(Color.background())
-        else:
-            self.set_color(Color.text())
-
     def set_color(self, color: ColorGenerating):
         self.brush.set_color(color)
 
@@ -595,17 +584,6 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
         Paintable.__init__(self)
         Selectable.__init__(self)
         Vertex.__init__(self, *args, **kwargs)
-
-        # change to the default colors
-        self.change_color_to_selected()
-
-    def change_color_to_selected(self):
-        """(re)set the color to the appropriate one, depending on whether the vertex
-        is selected or not."""
-        if self.is_selected():
-            self.set_color(Color.background())
-        else:
-            self.set_color(Color.text())
 
     def draw(
         self, painter: QPainter, palette: QPalette, directed: bool, weighted: bool
@@ -819,7 +797,7 @@ class DrawableGraph(Drawable, Graph):
 
         # don't change the object's color when an animation is being played
         if len(self.animations) == 0:
-            obj.change_color_to_selected()
+            self.change_color_to_selected(obj)
 
         self.selected_changed()
 
@@ -947,7 +925,16 @@ class DrawableGraph(Drawable, Graph):
 
         # reset node colors
         for obj in self.get_nodes() + self.get_vertices():
-            obj.change_color_to_selected()
+            self.change_color_to_selected(obj)
+
+    def change_color_to_selected(self, obj: Union[DrawableNode, DrawableVertex]):
+        """(re)set the color to the appropriate one, depending on whether the node/vertex
+        is selected or not."""
+        if obj.is_selected():
+            obj.set_color(Color.background())
+        else:
+            obj.set_color(Color.text())
+
 
     def to_asymptote(self) -> str:
         # TODO possible export option
