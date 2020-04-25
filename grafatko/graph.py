@@ -311,21 +311,23 @@ class Graph:
             self.add_vertex(n1, n2)
 
     @classmethod
-    def from_string(cls, string: str) -> type(cls):
+    def from_string(cls, string: str, *args, **kwargs) -> type(cls):
         """Generates the graph from a given string."""
         graph = None
         node_dictionary = {}
 
         # add each of the nodes of the given line to the graph
-        for line in filter(lambda x: len(x) != 0 or x[0] != "#", string.splitlines()):
+        for line in filter(lambda x: len(x) != 0, string.splitlines()):
             parts = line.strip().split()
 
-            # initialize the graph from the first line, if it hasn't been done yet
+            # initialize the graph from the first line (if it hasn't been done yet)
             if graph is None:
                 directed = parts[1] in ("->", "<-")
                 weighted = len(parts) == 3 + directed
 
-                graph = cls(directed=directed, weighted=weighted)
+                graph = cls(*args, **kwargs)
+                graph.set_directed(directed)
+                graph.set_weighted(weighted)
 
             # the formats are either 'A B' or 'A <something> B'
             node_names = (parts[0], parts[1 + directed])
@@ -361,53 +363,56 @@ class Graph:
         counter = 0  # for naming nodes that don't have a label
         added = {}
 
-        for i, n1 in enumerate(self.get_nodes()):
-            for n2 in self.get_nodes()[i + 1 :]:
-                # only add a vertex from an undirected graph once
-                if not self.is_directed() and id(n1) > id(n2):
-                    continue
+        # for each vertex
+        for vertex in self.get_vertices():
+            n1 = vertex[0]
+            n2 = vertex[1]
 
-                # TODO make this the code less shitty
-                n1_label = n1.get_label()
-                if n1_label is None:
-                    if n1 not in added:
-                        added[n1] = str(counter := counter + 1)
-                    n1_label = added[n1]
+            # only add a vertex from an undirected graph once
+            if not self.is_directed() and id(n1) > id(n2):
+                continue
 
-                n2_label = n2.get_label()
-                if n2_label is None:
-                    if n2 not in added:
-                        added[n2] = str(counter := counter + 1)
-                    n2_label = added[n2]
+            # TODO make this the code less shitty
+            n1_label = n1.get_label()
+            if n1_label is None:
+                if n1 not in added:
+                    added[n1] = str(counter := counter + 1)
+                n1_label = added[n1]
 
-                # TODO: simplify this code
-                if n1.is_adjacent_to(n2):
-                    string += (
-                        n1_label
-                        + (" -> " if self.is_directed() else " ")
-                        + n2_label
-                        + (
-                            (" " + str(self.get_weight(n1, n2)))
-                            if self.is_weighted()
-                            else ""
-                        )
-                        + "\n"
+            n2_label = n2.get_label()
+            if n2_label is None:
+                if n2 not in added:
+                    added[n2] = str(counter := counter + 1)
+                n2_label = added[n2]
+
+            # TODO: simplify this code
+            if n1.is_adjacent_to(n2):
+                string += (
+                    n1_label
+                    + (" -> " if self.is_directed() else " ")
+                    + n2_label
+                    + (
+                        (" " + str(self.get_weight(n1, n2)))
+                        if self.is_weighted()
+                        else ""
                     )
+                    + "\n"
+                )
 
-                if n2.is_adjacent_to(n1) and self.is_directed():
-                    string += (
-                        n1_label
-                        + (" <- " if self.is_directed() else " ")
-                        + n2_label
-                        + (
-                            (" " + str(self.get_weight(n2, n1)))
-                            if self.is_weighted()
-                            else ""
-                        )
-                        + "\n"
+            if n2.is_adjacent_to(n1) and self.is_directed():
+                string += (
+                    n1_label
+                    + (" <- " if self.is_directed() else " ")
+                    + n2_label
+                    + (
+                        (" " + str(self.get_weight(n2, n1)))
+                        if self.is_weighted()
+                        else ""
                     )
+                    + "\n"
+                )
 
-            return string
+        return string
 
 
 class Drawable(ABC):
@@ -934,7 +939,6 @@ class DrawableGraph(Drawable, Graph):
             obj.set_color(Color.background())
         else:
             obj.set_color(Color.text())
-
 
     def to_asymptote(self) -> str:
         # TODO possible export option

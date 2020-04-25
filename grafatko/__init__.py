@@ -365,7 +365,9 @@ class Canvas(QWidget):
         try:
             # TODO make the creation less jittery
             # create the graph
-            if new_graph := DrawableGraph.from_string(open(path, "r").read()):
+            if new_graph := DrawableGraph.from_string(
+                open(path, "r").read(), selected_changed=self.selected_changed
+            ):
                 self.graph = new_graph
 
             # center on it (immediately)
