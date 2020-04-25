@@ -61,6 +61,19 @@ class Color(ColorGenerating):
         """Return a Color object that is darker than the current one by a coefficient."""
         return Color(lambda palette: self.color_function(palette).darker(coefficient))
 
+    @classmethod
+    def __contrast(cls, color: QColor) -> QColor:
+        average = 255 - (color.red() + color.green() + color.blue()) / 3
+        return QColor.fromRgb(average, average, average)
+
+    @classmethod
+    def contrast(cls, color: Color) -> Color:
+        """Return a Color object returning a color from white to black that is in
+        contrast to the given color.
+
+        TODO: make this more sophisticated than a simple average"""
+        return Color(lambda palette: cls.__contrast(color(palette)))
+
     def __call__(self, palette: QPalette) -> QColor:
         """Generated from the simple color function of the class."""
         return self.color_function(palette)

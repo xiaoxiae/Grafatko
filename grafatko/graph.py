@@ -424,10 +424,9 @@ class Paintable:
 
     TODO: Might not be a good name choice."""
 
-    def __init__(self, pen: Pen = None, brush: Brush = None, font_pen: Pen = None):
+    def __init__(self, pen: Pen = None, brush: Brush = None):
         self.pen = pen or Pen()
         self.brush = brush or Brush()
-        self.font_pen = font_pen or Pen()
 
     @abstractmethod
     def set_color(self, color: ColorGenerating, *args, **kwargs):
@@ -436,16 +435,13 @@ class Paintable:
         pass
 
     @abstractmethod
-    def get_color(self, *args, **kwargs):
+    def get_color(self, *args, **kwargs) -> ColorGenerating:
         pass
 
-    def set_font_color(self, color: ColorGenerating):
-        """Sets the font color."""
-        self.font_pen.set_color(color)
-
     def get_font_color(self) -> ColorGenerating:
-        """Gets the font color."""
-        return self.font_pen.get_color()
+        """Gets the font color of the paintable as the opposite of the brightness of
+        the current color."""
+        return Color.contrast(self.get_color())
 
 
 class Selectable:
@@ -493,10 +489,8 @@ class DrawableNode(Drawable, Paintable, Selectable, Node):
         is selected or not."""
         if self.is_selected():
             self.set_color(Color.background())
-            self.set_font_color(Color.text())
         else:
             self.set_color(Color.text())
-            self.set_font_color(Color.background())
 
     def set_color(self, color: ColorGenerating):
         self.brush.set_color(color)
@@ -591,7 +585,6 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
     text_scale: Final[float] = 0.04  # the constant by which to scale down the font
 
     def __init__(self, *args, **kwargs):
-
         self.font: QFont = None  # the font that is used to draw the weights
 
         Paintable.__init__(self)
@@ -606,10 +599,8 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
         is selected or not."""
         if self.is_selected():
             self.set_color(Color.background())
-            self.set_font_color(Color.text())
         else:
             self.set_color(Color.text())
-            self.set_font_color(Color.background())
 
     def draw(
         self, painter: QPainter, palette: QPalette, directed: bool, weighted: bool
@@ -656,7 +647,7 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
             painter.translate(rect.topLeft())
             painter.scale(scale, scale)
 
-            painter.setPen(self.font_pen(palette))
+            painter.setPen(self.get_font_color()(palette))
 
             painter.drawText(
                 QRectF(0, 0, rect.width() / scale, rect.height() / scale),
@@ -807,6 +798,7 @@ class DrawableGraph(Drawable, Graph):
         self.animations.append((obj, ColorAnimation(prev_c, c, **kwargs)))
 
     def set_default_animation_duration(self, value):
+        """Set the default animation duration (class variable of ColorAnimation class)."""
         ColorAnimation.set_default_duration(value)
 
     def select(self, obj: Union[DrawableNode, DrawawbleVertex]):
