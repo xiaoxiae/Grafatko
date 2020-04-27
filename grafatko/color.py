@@ -83,12 +83,12 @@ class Color(ColorGenerating):
 class Colorable:
     """Something that can be colored."""
 
-    color: Color = Color.text()
+    color: ColorGenerating = Color.text()
 
-    def set_color(self, color: Color):
+    def set_color(self, color: ColorGenerating):
         self.color = color
 
-    def get_color(self) -> Color:
+    def get_color(self) -> ColorGenerating:
         return self.color
 
 
