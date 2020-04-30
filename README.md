@@ -7,6 +7,16 @@ An app for creating and visualizing graphs and graph-related algorithms.
 First, install the app by running `pip install grafatko`.
 Then you can simply run the `grafatko` command from a terminal of your choice.
 
+---
+
+Another way to run grafátko (albeit a little more difficult) is to first clone the repository, go to the base directory and run the project as a Python module:
+
+```console
+xiaoxiae@thinkpad ~> git clone https://github.com/xiaoxiae/Grafatko.git
+xiaoxiae@thinkpad ~> cd Grafatko/
+xiaoxiae@thinkpad ~> python -m grafatko.__init__
+```
+
 ## Controls
 
 ### Mouse
