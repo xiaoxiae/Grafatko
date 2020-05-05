@@ -54,7 +54,8 @@ class Canvas(QWidget):
     def update(self, *args):
         """A function that gets periodically called to update the canvas."""
         # if the graph is rooted and we want to do forces
-        if root := self.graph.get_root() is not None and self.forces:
+        root = self.graph.get_root()
+        if root is not None and self.forces:
             distances = self.graph.get_distance_from_root()
 
             # calculate the forces within each BFS layer from root
@@ -113,11 +114,9 @@ class Canvas(QWidget):
                     n1.evaluate_forces()
 
         # if space is being pressed, center around the currently selected nodes
-        if (
-            self.keyboard.space.pressed()
-            and len(ns := self.graph.get_selected_nodes()) != 0
-        ):
-            self.transformation.center(Vector.average([n.get_position() for n in ns]))
+        sn = self.graph.get_selected_nodes()
+        if (self.keyboard.space.pressed() and len(sn) != 0):
+            self.transformation.center(Vector.average([n.get_position() for n in sn]))
 
         super().update(*args)
 
@@ -217,9 +216,12 @@ class Canvas(QWidget):
 
         # toggle graph root on r press
         if key is self.keyboard.r:
+            selected = self.graph.get_selected_nodes()
+
             if self.graph.get_root() is not None:
                 self.graph.set_root(None)
-            elif len(selected := self.graph.get_selected_nodes()) == 1:
+
+            elif len(selected) == 1:
                 self.graph.set_root(selected[0])
 
         # delete selected nodes on del press
@@ -316,7 +318,8 @@ class Canvas(QWidget):
 
         # rotate nodes on shift press
         if self.keyboard.shift.pressed():
-            if len(selected := self.graph.get_selected_nodes()) != 0:
+            selected = self.graph.get_selected_nodes()
+            if len(selected) != 0:
                 nodes = self.graph.get_weakly_connected(
                     *self.graph.get_selected_nodes()
                 )
@@ -365,9 +368,11 @@ class Canvas(QWidget):
         try:
             # TODO make the creation less jittery
             # create the graph
-            if new_graph := DrawableGraph.from_string(
+            new_graph = DrawableGraph.from_string(
                 open(path, "r").read(), selected_changed=self.selected_changed
-            ):
+            )
+
+            if new_graph is not None:
                 self.graph = new_graph
 
             # center on it (immediately)

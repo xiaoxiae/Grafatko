@@ -6,7 +6,7 @@ script_location = path.abspath(path.dirname(__file__))
 setup(
     # information about the package
     name="grafatko",
-    version="0.2.1",
+    version="0.2.2",
     author="Tomáš Sláma",
     author_email="tomas@slama.dev",
     keywords="graph graphs pyqt5 algorithm algorithms",
@@ -28,5 +28,5 @@ setup(
 
     # requirements
     install_requires=["pyqt5", "qtmodern"],
-    python_requires='>=3.8',
+    python_requires='>=3.7',
 )

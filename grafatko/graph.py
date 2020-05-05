@@ -376,13 +376,15 @@ class Graph:
             n1_label = n1.get_label()
             if n1_label is None:
                 if n1 not in added:
-                    added[n1] = str(counter := counter + 1)
+                    counter += 1
+                    added[n1] = str(counter)
                 n1_label = added[n1]
 
             n2_label = n2.get_label()
             if n2_label is None:
                 if n2 not in added:
-                    added[n2] = str(counter := counter + 1)
+                    counter += 1
+                    added[n2] = str(counter)
                 n2_label = added[n2]
 
             # TODO: simplify this code
