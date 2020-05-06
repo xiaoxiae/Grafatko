@@ -14,6 +14,7 @@ Another way to run grafátko (albeit a little more difficult) is to first clone 
 ```console
 xiaoxiae@thinkpad ~> git clone https://github.com/xiaoxiae/Grafatko.git
 xiaoxiae@thinkpad ~> cd Grafatko/
+xiaoxiae@thinkpad ~> pip install -r requirements.txt
 xiaoxiae@thinkpad ~> python -m grafatko.__init__
 ```
 
