@@ -490,35 +490,6 @@ class Grafatko(QMainWindow):
             )
         )
 
-        # help menu
-        self.help_menu = self.menubar.addMenu("&Help")
-        self.help_menu.addActions(
-            [
-                QAction(
-                    "&About",
-                    self,
-                    triggered=lambda: QMessageBox.information(
-                        self,
-                        "About",
-                        "This application was created as a semester project for a "
-                        "programming class at <a href='https://www.mff.cuni.cz/en'>MFF UK</a> "
-                        "by Tomáš Sláma. It's open source (see the tab below) and licensed "
-                        "under MIT, so do as you please with the code and anything else "
-                        "related to the project.",
-                    ),
-                ),
-                QAction(
-                    "&Source Code",
-                    self,
-                    triggered=partial(
-                        # TODO: make non-blocking
-                        webbrowser.open,
-                        "https://github.com/xiaoxiae/Grafatko",
-                    ),
-                ),
-            ]
-        )
-
         # algorithm menu
         self.help_menu = self.menubar.addMenu("&Algorithms")
         self.help_menu.addAction(
@@ -579,6 +550,35 @@ class Grafatko(QMainWindow):
             ),
             (3, 0, 1, -1): self.line_edit,
         }
+
+        # help menu
+        self.help_menu = self.menubar.addMenu("&Help")
+        self.help_menu.addActions(
+            [
+                QAction(
+                    "&About",
+                    self,
+                    triggered=lambda: QMessageBox.information(
+                        self,
+                        "About",
+                        "This application was created as a semester project for a "
+                        "programming class at <a href='https://www.mff.cuni.cz/en'>MFF UK</a> "
+                        "by Tomáš Sláma. It's open source (see the tab below) and licensed "
+                        "under MIT, so do as you please with the code and anything else "
+                        "related to the project.",
+                    ),
+                ),
+                QAction(
+                    "&Source Code",
+                    self,
+                    triggered=partial(
+                        # TODO: make non-blocking
+                        webbrowser.open,
+                        "https://github.com/xiaoxiae/Grafatko",
+                    ),
+                ),
+            ]
+        )
 
         for k, v in widgets.items():
             layout.addWidget(v, *k)
