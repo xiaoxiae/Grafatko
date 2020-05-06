@@ -6,8 +6,8 @@ from typing import *
 from math import sqrt, sin, cos
 from dataclasses import *
 
-Number = Union[int, float, complex]
 
+Number = Union[int, float, complex]
 
 class Vector:
     """A Python implementation of a vector class and some of its operations."""
@@ -54,7 +54,8 @@ class Vector:
 
     def __mul__(self, other: Vector):
         """Defines scalar and dot product of a vector."""
-        if type(other) in get_args(Number):
+        # TODO do this better using typing?
+        if type(other) in (int, float, complex):
             return Vector(*iter(component * other for component in self))
         else:
             return sum(u * v for u, v in zip(self, other))
