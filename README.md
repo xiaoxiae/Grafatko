@@ -29,7 +29,7 @@ xiaoxiae@thinkpad ~> python -m grafatko.__init__
 ### Keyboard
 - **r** toggles 'tree mode' for smoother visualisation of trees
 	- essentially applies special forces on the nodes to group them by distance from the currently selected node
-	- only works if a single mode is selected
+	- only works if a single node is selected
 - **space** centers on the currently selected nodes
 - **delete** deletes the currently selected items
 
