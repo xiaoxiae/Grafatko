@@ -44,10 +44,3 @@ def bfs(graph: DrawableGraph):
         # change the color from open to closed
         graph.change_color(node, State.closed.value)
         state[node] = State.closed
-
-
-# TODO: ideas for algorithms
-# - BFS, DFS
-# - dijkstra
-# - graph from score
-# - strongly and weakly connected components
