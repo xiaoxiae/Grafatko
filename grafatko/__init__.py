@@ -114,9 +114,17 @@ class Canvas(QWidget):
                     n1.evaluate_forces()
 
         # if space is being pressed, center around the currently selected nodes
+        # if there are none, center around their average
         sn = self.graph.get_selected_nodes()
-        if (self.keyboard.space.pressed() and len(sn) != 0):
-            self.transformation.center(Vector.average([n.get_position() for n in sn]))
+        if self.keyboard.space.pressed():
+            self.transformation.center(
+                Vector.average(
+                    [
+                        n.get_position()
+                        for n in (sn if (len(sn) != 0) else self.graph.get_nodes())
+                    ]
+                )
+            )
 
         super().update(*args)
 
