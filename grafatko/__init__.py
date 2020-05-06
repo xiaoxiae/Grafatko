@@ -533,20 +533,26 @@ class Grafatko(QMainWindow):
             ),
             (0, 2): QLabel(self, text="Actions"),
             (1, 2): QPushButton(
-                "complement", self, pressed=self.canvas.get_graph().complement
+                "complement", self, pressed=lambda: self.canvas.get_graph().complement()
             ),
             (2, 2): QPushButton(
-                "reorient", self, pressed=self.canvas.get_graph().reorient
+                "reorient", self, pressed=lambda: self.canvas.get_graph().reorient()
             ),
             (0, 3, 1, 2): QLabel(self, text="Animations"),
             (1, 3, 1, 1): QPushButton(
-                "pause", self, pressed=self.canvas.get_graph().pause_animations
+                "pause",
+                self,
+                pressed=lambda: self.canvas.get_graph().pause_animations(),
             ),
             (1, 4, 1, 1): QPushButton(
-                "resume", self, pressed=self.canvas.get_graph().resume_animations
+                "resume",
+                self,
+                pressed=lambda: self.canvas.get_graph().resume_animations(),
             ),
             (2, 3, 1, 2): QPushButton(
-                "clear", self, pressed=self.canvas.get_graph().clear_animations
+                "clear",
+                self,
+                pressed=lambda: self.canvas.get_graph().clear_animations(),
             ),
             (3, 0, 1, -1): self.line_edit,
         }
