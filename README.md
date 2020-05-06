@@ -33,12 +33,18 @@ xiaoxiae@thinkpad ~> python -m grafatko.__init__
 - **space** centers on the currently selected nodes
 - **delete** deletes the currently selected items
 
+### Other
+- `complement` -- makes the graph [complemented](https://en.wikipedia.org/wiki/Complement_graph)
+- `reorinet` -- changes the directions of the vertices of the graph
+
 ## Visualizing algorithms
 The app allows for visualising custom algorithms on the currently edited graph.
 Examples of valid programs can be found in the `examples/` folder.
 
 After creating a graph, you can go to `Algorithms -> Run` and select the one you want to run on the graph.
 The program then calls a function with the same name as the file, the only parameter being the `DrawableGraph` object to run the algorithm on.
+
+When the animation is running, you can use the `pause`, `resume` and `clear` to control it.
 
 ## Importing/exporting graphs
 The app uses a simple format for importing and exporting graph.
