@@ -476,6 +476,9 @@ class Grafatko(QMainWindow):
             ]
         )
 
+        # set to light by default
+        styles.light(QApplication.instance())
+
         # preference menu
         self.preferences_menu = self.menubar.addMenu("&Preferences")
         self.preferences_menu.addAction(
