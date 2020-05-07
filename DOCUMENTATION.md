@@ -144,8 +144,27 @@ It provides convenience methods for changing the transformation and applying the
 
 ---
 
+## Things to mention
+
+### Forces
+The forces are implemented using a few functions that act on the nodes, depending on how far they are and whether they are connected.
+The algorithm examines each unique pair of nodes, calculates the forces and:
+
+- repulses them a little
+- attracts them a lot, but only if they share a vertex
+
+To see the actual functions used, see the `repulsion` and `attraction` variables in the `Canvas` class.
+
+### Tree mode
+The tree mode exerts additional forces over the nodes, depending on whether some node is currently the root.
+It runs BFS from the root node, getting the layers of the graph from root.
+After this, it moves forces in each of the layer towards a horizontal line (average of their `y` components) so they are vertically as close as possible.
+Also, gravity (a constant vector) is applied so the nodes move "down" (since that's how trees are usually visualized).
+
+---
+
 ## Future development
-I'm pretty happy with the current state of the project, but there are still some features that I would really like to see added before the `1.0` release.
+I'm pretty happy with the current state of the project, but there are still some features that I would really like to see added (and bugs to fix) before the `1.0` release:
 
 - other export formats, mainly SVG and dot
 - label animations, node/vertex-creating animations
@@ -170,4 +189,5 @@ I would like to thank:
 - Veronika Slámová for creating the neat icon for the project.
 - Jakub Medek and Michael Bohin for testing and giving feedback.
 - Martin Mareš for the great algorithm course that I'm writing this project for.
-- Adam Dingle for feedback regarding the previous version of the project.
+- Adam Dingle for valuable feedback regarding the project, both providing interesting ideas and discovering new bugs.
+- All the users that keep me motivated to continue developing the project.
