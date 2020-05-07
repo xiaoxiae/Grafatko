@@ -164,12 +164,8 @@ Also, gravity (a constant vector) is applied so the nodes move "down" (since tha
 ---
 
 ## Future development
-I'm pretty happy with the current state of the project, but there are still some features that I would really like to see added (and bugs to fix) before the `1.0` release:
-
-- other export formats, mainly SVG and dot
-- label animations, node/vertex-creating animations
-- undo/redo
-- multigraphs
+I'm pretty happy with the current state of the project, but there are still some features that I would really like to see added (and bugs to fix) before the `1.0` release.
+To see them, visit the [GitHub issues page](https://github.com/xiaoxiae/Grafatko/issues/).
 
 ---
 
