@@ -69,9 +69,7 @@ class Color(ColorGenerating):
     @classmethod
     def contrast(cls, color: Color) -> Color:
         """Return a Color object returning a color from white to black that is in
-        contrast to the given color.
-
-        TODO: make this more sophisticated than a simple average"""
+        contrast to the given color."""
         return Color(lambda palette: cls.__contrast(color(palette)))
 
     def __call__(self, palette: QPalette) -> QColor:

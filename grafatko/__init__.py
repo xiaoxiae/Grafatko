@@ -31,8 +31,6 @@ class Canvas(QWidget):
 
     def __init__(self, line_edit, parent=None):
         super().__init__(parent)
-        # TODO: add a mouse select thingy for selecting multiple nodes
-
         # GRAPH
         self.graph = DrawableGraph(selected_changed=self.selected_changed)
 
@@ -262,7 +260,6 @@ class Canvas(QWidget):
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
-        # TODO: deselect on release
         key = self.mouse.released_event(event)
 
         # stop dragging the nodes, if left is released
@@ -283,7 +280,7 @@ class Canvas(QWidget):
         if key is self.mouse.left:
             # if we hit a node, start dragging the nodes
             if pressed_node is not None:
-                self.select(pressed_node)
+                self.toggle(pressed_node)
 
                 # start dragging the nodes
                 for node in self.graph.get_selected_nodes():
@@ -374,7 +371,6 @@ class Canvas(QWidget):
             return
 
         try:
-            # TODO make the creation less jittery
             # create the graph
             new_graph = DrawableGraph.from_string(
                 open(path, "r").read(), selected_changed=self.selected_changed
@@ -390,7 +386,6 @@ class Canvas(QWidget):
             )
 
         except Exception as e:
-            # TODO
             QMessageBox.critical(
                 self, "Error!", "An error occurred when importing the graph."
             )
@@ -406,7 +401,6 @@ class Canvas(QWidget):
             with open(path, "w") as f:
                 f.write(self.graph.to_string())
         except Exception as e:
-            # TODO
             QMessageBox.critical(
                 self, "Error!", "An error occurred when exporting the graph."
             )
@@ -425,7 +419,6 @@ class Canvas(QWidget):
             QMessageBox.critical(self, "Error!", "The file must be a Python program.")
             return
 
-        # TODO improve messages
         try:
             filename = os.path.basename(path)[:-3]
             cls = SourceFileLoader(filename, path).load_module()
@@ -438,23 +431,15 @@ class Canvas(QWidget):
             QMessageBox.critical(
                 self,
                 "Error!",
-                f"An error occurred when running the algorithm.\n\n---\n{e}\n---",
+                f"An error occurred when running the algorithm.\n\n{e}",
             )
 
 
 class Grafatko(QMainWindow):
     def __init__(self):
-        # TODO: hide toolbar and dock with f-10 or something
-        # TODO undo, redo
-
         super().__init__()
 
         styles.light(QApplication.instance())
-
-        # TODO: command line argument parsing (--dark and stuff)
-        # parser = argparse.ArgumentParser(description="")
-        # arguments = parser.parse_args()
-        # print(arguments)
 
         # Widgets
         ## Canvas (main widget)
@@ -463,8 +448,6 @@ class Grafatko(QMainWindow):
         self.canvas = Canvas(self.line_edit, parent=self)
         self.canvas.setMinimumSize(100, 200)  # reasonable minimum size
         self.setCentralWidget(self.canvas)
-
-        # TODO: add to tab order (and highlight when it is)
 
         ## Top menu bar
         self.menubar = self.menuBar()
@@ -511,8 +494,8 @@ class Grafatko(QMainWindow):
         # TODO: shrink after leaving the dock
         # TODO: disable vertical resizing
         self.dock_menu = QDockWidget("Settings", self)
-        self.dock_menu.setAllowedAreas(Qt.BottomDockWidgetArea)  # float bottom
-        self.dock_menu.setFeatures(QDockWidget.DockWidgetFloatable)  # hide close button
+        self.dock_menu.setAllowedAreas(Qt.BottomDockWidgetArea)
+        self.dock_menu.setFeatures(QDockWidget.DockWidgetFloatable)
 
         layout = QGridLayout()
 

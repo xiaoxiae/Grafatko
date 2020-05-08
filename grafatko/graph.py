@@ -372,7 +372,6 @@ class Graph:
             if not self.is_directed() and id(n1) > id(n2):
                 continue
 
-            # TODO make this the code less shitty
             n1_label = n1.get_label()
             if n1_label is None:
                 if n1 not in added:
@@ -387,7 +386,6 @@ class Graph:
                     added[n2] = str(counter)
                 n2_label = added[n2]
 
-            # TODO: simplify this code
             if n1.is_adjacent_to(n2):
                 string += (
                     n1_label
@@ -428,9 +426,7 @@ class Drawable(ABC):
 
 
 class Paintable:
-    """Has a brush and a pen to be drawn on the painter.
-
-    TODO: Might not be a good name choice."""
+    """Has a brush and a pen to be drawn on the painter."""
 
     def __init__(self, pen: Pen = None, brush: Brush = None):
         self.pen = pen or Pen()
@@ -582,7 +578,6 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
     arrow_separation: Final[float] = pi / 7  # how far apart are two-way vertices
     loop_arrowhead_angle: Final[float] = -30.0  # an angle for the head in a loop
 
-    # possible TODO: compute this programatically
     text_scale: Final[float] = 0.04  # the constant by which to scale down the font
 
     def __init__(self, *args, **kwargs):
@@ -935,22 +930,9 @@ class DrawableGraph(Drawable, Graph):
             self.change_color_to_selected(obj)
 
     def change_color_to_selected(self, obj: Union[DrawableNode, DrawableVertex]):
-        """(re)set the color to the appropriate one, depending on whether the node/vertex
-        is selected or not."""
+        """(re)set the color to the appropriate one, depending on whether the
+        node/vertex is selected or not."""
         if obj.is_selected():
             obj.set_color(Color.background())
         else:
             obj.set_color(Color.text())
-
-    def to_asymptote(self) -> str:
-        # TODO possible export option
-        pass
-
-    def to_tikz(self) -> str:
-        # TODO possible export option
-        pass
-
-    def to_svg(self) -> str:
-        # TODO possible export option
-        # https://stackoverflow.com/questions/57432570/generate-a-svg-file-with-pyqt5
-        pass

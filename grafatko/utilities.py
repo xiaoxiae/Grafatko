@@ -54,7 +54,6 @@ class Vector:
 
     def __mul__(self, other: Vector):
         """Defines scalar and dot product of a vector."""
-        # TODO do this better using typing?
         if type(other) in (int, float, complex):
             return Vector(*iter(component * other for component in self))
         else:
