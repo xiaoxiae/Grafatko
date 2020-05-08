@@ -1,6 +1,7 @@
 import os
 import sys
 import webbrowser
+import argparse
 from importlib.machinery import SourceFileLoader
 from functools import partial
 from random import random
@@ -436,7 +437,7 @@ class Canvas(QWidget):
 
 
 class Grafatko(QMainWindow):
-    def __init__(self):
+    def __init__(self, arguments):
         super().__init__()
 
         styles.light(QApplication.instance())
@@ -467,8 +468,11 @@ class Grafatko(QMainWindow):
             ]
         )
 
-        # set to light by default
-        styles.light(QApplication.instance())
+        # set to light by default (unless there is an argument to set it to dark)
+        if arguments.dark:
+            styles.dark(QApplication.instance())
+        else:
+            styles.light(QApplication.instance())
 
         # preference menu
         self.preferences_menu = self.menubar.addMenu("&Preferences")
@@ -477,6 +481,7 @@ class Grafatko(QMainWindow):
                 "&Dark Theme",
                 self,
                 checkable=True,
+                checked=arguments.dark,
                 triggered=partial(
                     lambda x, y: styles.dark(x) if y else styles.light(x),
                     QApplication.instance(),
@@ -604,8 +609,21 @@ class Grafatko(QMainWindow):
 
 def run():
     """An entry point to the GUI."""
+
+    parser = argparse.ArgumentParser(
+        description="An app for creating and visualizing graphs and graph-related algorithms.",
+    )
+
+    parser.add_argument(
+        "-d",
+        "--dark",
+        dest="dark",
+        action="store_true",
+        help="start the app in dark mode",
+    )
+
     app = QApplication(sys.argv)
-    ex = Grafatko()
+    ex = Grafatko(parser.parse_args())
     sys.exit(app.exec_())
 
 
