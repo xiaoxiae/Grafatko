@@ -5,6 +5,7 @@ import argparse
 from importlib.machinery import SourceFileLoader
 from functools import partial
 from random import random
+from math import pi
 
 from PyQt5.QtWidgets import *
 from PyQt5.QtGui import *
@@ -379,6 +380,12 @@ class Canvas(QWidget):
 
             if new_graph is not None:
                 self.graph = new_graph
+
+                # make the graph less jittery by setting the positions in a circle
+                for i, node in enumerate(self.graph.get_nodes()):
+                    node.set_position(
+                        Vector(3, 3).rotated(i * (2 * pi / len(self.graph.get_nodes())))
+                    )
 
             # center on it (immediately)
             self.transformation.center(
