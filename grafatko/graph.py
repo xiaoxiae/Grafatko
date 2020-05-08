@@ -695,6 +695,9 @@ class DrawableVertex(Drawable, Paintable, Selectable, Vertex):
         from_pos = Vector(*self[0].get_position())
         to_pos = Vector(*self[1].get_position())
 
+        if to_pos == from_pos:
+            return to_pos, to_pos
+
         # unit vector from n1 to n2
         uv = (to_pos - from_pos).unit()
 
@@ -717,7 +720,13 @@ class DrawableGraph(Drawable, Graph):
     vertex_class = DrawableVertex
     node_class = DrawableNode
 
-    def __init__(self, *args, selected_changed: Callable[None] = None, **kwargs):
+    def __init__(
+        self,
+        *args,
+        selected_changed: Callable[None] = None,
+        animation_stopped: Callable[None] = None,
+        **kwargs
+    ):
         self.show_labels: bool = False  # whether or not to show the labels of nodes
 
         # a dictionary for calculating the distance from a root node
@@ -726,12 +735,16 @@ class DrawableGraph(Drawable, Graph):
         self.root = None
 
         # callback when something in the graph is selected/deselected
-        self.selected_changed: Callable = selected_changed
+        self.selected_changed = selected_changed
+
+        # callback when the animation has stopped playing
+        self.animation_stopped = animation_stopped
 
         # a queue of animations to be played out
         self.animations: List[
             Tuple[Union[DrawableNode, DrawableVertex], ColorAnimation]
         ] = []
+
         self.default_duration = 1000
 
         Graph.__init__(self, *args, **kwargs)
@@ -758,8 +771,13 @@ class DrawableGraph(Drawable, Graph):
                 prev_a = a
 
         # check for animations that have already finished and remove them
+        animation_count = len(self.animations)
         while len(self.animations) > 0 and self.animations[0][1].has_finished():
             self.animations.pop(0)
+
+        # callback when the animations stopped playing
+        if animation_count != 0 and len(self.animations) == 0:
+            self.animation_stopped()
 
         # first, draw all vertices
         for vertex in self.get_vertices():
@@ -928,6 +946,10 @@ class DrawableGraph(Drawable, Graph):
         # reset node colors
         for obj in self.get_nodes() + self.get_vertices():
             self.change_color_to_selected(obj)
+
+    def animations_active(self):
+        """Return True if some animations are currently being played."""
+        return len(self.animations) != 0
 
     def change_color_to_selected(self, obj: Union[DrawableNode, DrawableVertex]):
         """(re)set the color to the appropriate one, depending on whether the

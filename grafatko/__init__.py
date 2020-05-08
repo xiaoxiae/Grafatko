@@ -31,10 +31,12 @@ class Canvas(QWidget):
     tree = lambda _, v: v * 0.3
     gravity = lambda _: Vector(0, 0.1)
 
-    def __init__(self, line_edit, parent=None):
+    def __init__(self, line_edit, parent, update_ui_callback):
         super().__init__(parent)
         # GRAPH
-        self.graph = DrawableGraph(selected_changed=self.selected_changed)
+        self.graph = DrawableGraph(
+            selected_changed=self.selected_changed, animation_stopped=update_ui_callback
+        )
 
         # CANVAS STUFF
         self.transformation = Transformation(self)
@@ -50,6 +52,8 @@ class Canvas(QWidget):
 
         # timer that runs the simulation (60 times a second... once every ~= 17ms)
         QTimer(self, interval=17, timeout=self.update).start()
+
+        self.update_ui_callback = update_ui_callback
 
     def update(self, *args):
         """A function that gets periodically called to update the canvas."""
@@ -115,16 +119,19 @@ class Canvas(QWidget):
 
         # if space is being pressed, center around the currently selected nodes
         # if there are none, center around their average
-        sn = self.graph.get_selected_nodes()
         if self.keyboard.space.pressed():
-            self.transformation.center(
-                Vector.average(
-                    [
-                        n.get_position()
-                        for n in (sn if (len(sn) != 0) else self.graph.get_nodes())
-                    ]
+            sn = self.graph.get_selected_nodes()
+            pivot = None
+
+            if len(sn) != 0:
+                pivot = Vector.average([n.get_position() for n in sn])
+            elif len(self.graph.get_nodes()) != 0:
+                pivot = Vector.average(
+                    [n.get_position() for n in self.graph.get_nodes()]
                 )
-            )
+
+            if pivot is not None:
+                self.transformation.center(pivot)
 
         super().update(*args)
 
@@ -348,10 +355,21 @@ class Canvas(QWidget):
         for node in nodes:
             node.set_position(node.get_position().rotated(angle, pivot), True)
 
-    def select(self, obj: Union[DrawableNode, DrawableVertex], override_shift=False):
+    def toggle(self, obj: Union[DrawableNode, DrawableVertex]):
         """Select the given node/vertex."""
         # only select one when shift is not pressed
-        if not self.keyboard.shift.pressed() and not override_shift:
+        if not self.keyboard.shift.pressed():
+            self.graph.deselect_all()
+
+        if obj.is_selected():
+            self.graph.deselect(obj)
+        else:
+            self.graph.select(obj)
+
+    def select(self, obj: Union[DrawableNode, DrawableVertex]):
+        """Select the given node/vertex."""
+        # only select one when shift is not pressed
+        if not self.keyboard.shift.pressed():
             self.graph.deselect_all()
 
         # else just select it
@@ -375,13 +393,15 @@ class Canvas(QWidget):
         try:
             # create the graph
             new_graph = DrawableGraph.from_string(
-                open(path, "r").read(), selected_changed=self.selected_changed
+                open(path, "r").read(),
+                selected_changed=self.selected_changed,
+                animation_stopped=self.update_ui_callback,
             )
 
             if new_graph is not None:
                 self.graph = new_graph
 
-                # make the graph less jittery by setting the positions in a circle
+                # make the graph less jittery by setting the positions to a circle
                 for i, node in enumerate(self.graph.get_nodes()):
                     node.set_position(
                         Vector(3, 3).rotated(i * (2 * pi / len(self.graph.get_nodes())))
@@ -397,6 +417,8 @@ class Canvas(QWidget):
             QMessageBox.critical(
                 self, "Error!", "An error occurred when importing the graph."
             )
+
+        self.update_ui_callback()
 
     def export_graph(self):
         """Prompt a graph (from file) export."""
@@ -437,10 +459,10 @@ class Canvas(QWidget):
             QMessageBox.critical(self, "Error!", f"Function '{filename}' not found.")
         except Exception as e:
             QMessageBox.critical(
-                self,
-                "Error!",
-                f"An error occurred when running the algorithm.\n\n{e}",
+                self, "Error!", f"An error occurred when running the algorithm.\n\n{e}",
             )
+
+        self.update_ui_callback()
 
 
 class Grafatko(QMainWindow):
@@ -453,7 +475,7 @@ class Grafatko(QMainWindow):
         ## Canvas (main widget)
         self.line_edit = QLineEdit(self)
 
-        self.canvas = Canvas(self.line_edit, parent=self)
+        self.canvas = Canvas(self.line_edit, self, self.update_ui)
         self.canvas.setMinimumSize(100, 200)  # reasonable minimum size
         self.setCentralWidget(self.canvas)
 
@@ -511,55 +533,67 @@ class Grafatko(QMainWindow):
 
         layout = QGridLayout()
 
+        ## Widgets
+        self.directed_checkbox = QCheckBox(
+            "directed",
+            self,
+            toggled=self.set_directed
+        )
+
+        self.weighted_checkbox = QCheckBox(
+            "weighted",
+            self,
+            toggled=lambda value: self.canvas.get_graph().set_weighted(value),
+        )
+
+        self.reorient_pushbutton = QPushButton(
+            "reorient", self, pressed=lambda: self.canvas.get_graph().reorient()
+        )
+
+        self.pause_pushbutton = QPushButton(
+            "pause", self, pressed=lambda: self.canvas.get_graph().pause_animations(),
+        )
+
+        self.resume_pushbutton = QPushButton(
+            "resume", self, pressed=lambda: self.canvas.get_graph().resume_animations(),
+        )
+
+        self.clear_pushbutton = QPushButton(
+            "clear", self, pressed=self.clear_animations,
+        )
+
+        self.labels_checkbox = QCheckBox(
+            "labels",
+            self,
+            toggled=lambda value: self.canvas.get_graph().set_show_labels(value),
+            checked=True,
+        )
+
+        self.gravity_checkbox = QCheckBox(
+            "gravity",
+            self,
+            toggled=lambda value: self.canvas.set_forces(value),
+            checked=True,
+        )
+
+        self.complement_pushbutton = QPushButton(
+            "complement", self, pressed=lambda: self.canvas.get_graph().complement()
+        )
+
         widgets = {
             (0, 0): QLabel(self, text="Graph"),
-            (1, 0): QCheckBox(
-                "directed",
-                self,
-                toggled=lambda value: self.canvas.get_graph().set_directed(value),
-            ),
-            (2, 0): QCheckBox(
-                "weighted",
-                self,
-                toggled=lambda value: self.canvas.get_graph().set_weighted(value),
-            ),
-            (3, 0): QCheckBox("multi", self),
+            (1, 0): self.directed_checkbox,
+            (2, 0): self.weighted_checkbox,
             (0, 1): QLabel(self, text="Visual"),
-            (1, 1): QCheckBox(
-                "labels",
-                self,
-                toggled=lambda value: self.canvas.get_graph().set_show_labels(value),
-                checked=True,
-            ),
-            (2, 1): QCheckBox(
-                "gravity",
-                self,
-                toggled=lambda value: self.canvas.set_forces(value),
-                checked=True,
-            ),
+            (1, 1): self.labels_checkbox,
+            (2, 1): self.gravity_checkbox,
             (0, 2): QLabel(self, text="Actions"),
-            (1, 2): QPushButton(
-                "complement", self, pressed=lambda: self.canvas.get_graph().complement()
-            ),
-            (2, 2): QPushButton(
-                "reorient", self, pressed=lambda: self.canvas.get_graph().reorient()
-            ),
+            (1, 2): self.complement_pushbutton,
+            (2, 2): self.reorient_pushbutton,
             (0, 3, 1, 2): QLabel(self, text="Animations"),
-            (1, 3, 1, 1): QPushButton(
-                "pause",
-                self,
-                pressed=lambda: self.canvas.get_graph().pause_animations(),
-            ),
-            (1, 4, 1, 1): QPushButton(
-                "resume",
-                self,
-                pressed=lambda: self.canvas.get_graph().resume_animations(),
-            ),
-            (2, 3, 1, 2): QPushButton(
-                "clear",
-                self,
-                pressed=lambda: self.canvas.get_graph().clear_animations(),
-            ),
+            (1, 3, 1, 1): self.pause_pushbutton,
+            (1, 4, 1, 1): self.resume_pushbutton,
+            (2, 3, 1, 2): self.clear_pushbutton,
             (3, 0, 1, -1): self.line_edit,
         }
 
@@ -602,6 +636,9 @@ class Grafatko(QMainWindow):
         self.dock_menu.setWidget(self.dock_widget)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_menu)
 
+        # set the UI buttons accordingly
+        self.update_ui()
+
         # WINDOW SETTINGS
         self.setWindowIcon(QIcon("icon.ico"))
         self.setWindowTitle("Grafátko")
@@ -612,6 +649,33 @@ class Grafatko(QMainWindow):
 
     def keyReleaseEvent(self, event):
         self.canvas.keyReleaseEvent(event)
+
+    def clear_animations(self):
+        """Clear animations and update the UI (to disable the animation buttons)."""
+        self.canvas.get_graph().clear_animations()
+        self.update_ui()
+
+    def set_directed(self, value):
+        """Set the direction of the graph, updating the UI."""
+        self.canvas.get_graph().set_directed(value)
+        self.update_ui()
+
+    def update_ui(self):
+        """Update the UI according to the state of the canvas. Is triggered when canvas
+        lets this class know that something has changed."""
+        animations_active = self.canvas.get_graph().animations_active()
+
+        self.clear_pushbutton.setEnabled(animations_active)
+        self.pause_pushbutton.setEnabled(animations_active)
+        self.resume_pushbutton.setEnabled(animations_active)
+
+        self.weighted_checkbox.setChecked(self.canvas.get_graph().is_weighted())
+        self.directed_checkbox.setChecked(self.canvas.get_graph().is_directed())
+
+        self.reorient_pushbutton.setEnabled(self.canvas.get_graph().is_directed())
+
+        # to prevent weird focus on textbox
+        self.setFocus()
 
 
 def run():
