@@ -47,12 +47,10 @@ The program then calls a function with the same name as the file, the only param
 When the animation is running, you can use the `pause`, `resume` and `clear` to control it.
 
 ## Importing/exporting graphs
-The app uses a simple format for importing and exporting graph.
-It consists of a list of vertices of the graph, with possible specifications to the direction and the weight of the given vertex.
-
-A single line has the format `n1 [direction] n2 [weight]`, where:
+The app uses a simple text-based format for importing and exporting graph.
+Each line of the file the format `n1 [direction] n2 [weight]`, where:
 - `n1` and `n2` are labels of the nodes forming the vertex, containing no whitespace characters
-- `[direction]` is used in directed graphs, and could be either `->` or `<-`
-- `[weight]` is used in weighted graphs, denotes the weight of the vertex
+- `[direction]` is used in directed graphs and is either `->` or `<-`
+- `[weight]` is used in weighted graphs, denotes the weight of the vertex (either int or float)
 
 Examples of valid graphs can be found in the `examples/` folder.
