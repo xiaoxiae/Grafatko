@@ -22,10 +22,10 @@ xiaoxiae@thinkpad ~> python -m grafatko.__init__
 
 ### Mouse
 - **right button** creates new nodes/vertices
-	- **+ shift** -- doesn't deselect the currently selected nodes:
+	- **+ shift** doesn't deselect the currently selected nodes:
 - **left button** selects and drags nodes/vertices around the screen
 	- if held, drags nodes along with the mouse
-	- **+ shift** -- toggles selection on nodes/vertices
+	- **+ shift** toggles selection on nodes/vertices
 		- if held, moves the entire graph component
 - **middle button** pans
 - **mouse wheel** zooms
