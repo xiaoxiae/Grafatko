@@ -31,6 +31,9 @@ class Canvas(QWidget):
     tree = lambda _, v: v * 0.3
     gravity = lambda _: Vector(0, 0.1)
 
+    # the radius around which to check if the node moved when shift-selecting nodes
+    mouse_toggle_radius = 0.1
+
     def __init__(self, line_edit, parent, update_ui_callback):
         super().__init__(parent)
         # GRAPH
@@ -206,15 +209,17 @@ class Canvas(QWidget):
         """Called when a key press is registered."""
         key = self.keyboard.released_event(event)
 
+        # if we release shift, stop shift-dragging the nodes
         if key is self.keyboard.shift:
             self.stop_shift_dragging_nodes()
 
-    def start_shift_dragging_nodes(self):
-        """Start dragging nodes that are weakly connected to some selected nodes."""
-        selected = self.graph.get_selected_nodes()
+    def start_shift_dragging_nodes(self, additional: List[DrawableNode] = []):
+        """Start dragging nodes that are weakly connected to some selected nodes (and
+        possibly also to those provided)."""
+        selected = self.graph.get_selected_nodes() + additional
 
         for n in self.graph.get_weakly_connected(*selected):
-            if not n.is_dragged() and n not in selected:
+            if not n.is_dragged():
                 n.start_drag(self.mouse.get_position())
 
     def stop_shift_dragging_nodes(self):
@@ -239,7 +244,6 @@ class Canvas(QWidget):
             elif len(selected) == 1:
                 self.graph.set_root(selected[0])
 
-        # delete selected nodes on del press
         if key is self.keyboard.delete:
             for node in self.graph.get_selected_nodes():
                 self.graph.remove_node(node)
@@ -254,7 +258,17 @@ class Canvas(QWidget):
         """Is called when the mouse is moved across the canvas."""
         self.mouse.moved_event(event)
 
-        # update dragged nodes (unless we are holding down space, centering on them)
+        pressed_node = self.graph.node_at_position(self.mouse.get_position())
+
+        if (
+            self.mouse.left.pressed()
+            and pressed_node is not None
+            and self.mouse.current_last_distance() > self.mouse_toggle_radius
+            and len(self.graph.get_dragged_nodes()) > 0
+        ):
+            self.select(pressed_node)
+
+        # move dragged nodes (unless we are holding down space, centering on them)
         # also move the canvas (unless holding down space)
         if not self.keyboard.space.pressed():
             for node in self.graph.get_nodes():
@@ -269,13 +283,25 @@ class Canvas(QWidget):
 
     def mouseReleaseEvent(self, event):
         """Is called when a mouse button is released."""
+        self.setFocus()  # done so that key strokes register
         key = self.mouse.released_event(event)
 
-        # stop dragging the nodes, if left is released
+        # get the node and the vertex at the position where we clicked
+        pressed_node = self.graph.node_at_position(self.mouse.get_position())
+        pressed_vertices = self.graph.vertices_at_position(self.mouse.get_position())
+
+        # stop dragging the nodes if left is released
         if key is self.mouse.left:
-            self.stop_shift_dragging_nodes()
-            for node in self.graph.get_selected_nodes():
+            for node in self.graph.get_nodes():
                 node.stop_drag()
+
+            # toggle if we haven't moved a lot
+            if self.mouse.current_last_distance() <= self.mouse_toggle_radius and self.keyboard.shift.pressed():
+                if pressed_node is not None:
+                    self.graph.toggle(pressed_node)
+
+                for vertex in pressed_vertices:
+                    self.graph.toggle(vertex)
 
     def mousePressEvent(self, event):
         """Called when a left click is registered."""
@@ -287,28 +313,26 @@ class Canvas(QWidget):
         pressed_vertices = self.graph.vertices_at_position(self.mouse.get_position())
 
         if key is self.mouse.left:
-            # if we hit a node, start dragging the nodes
-            if pressed_node is not None:
-                self.toggle(pressed_node)
-
-                # start dragging the nodes
-                for node in self.graph.get_selected_nodes():
-                    node.start_drag(self.mouse.get_position())
-
-                # also start dragging other nodes if shift is pressed
-                if self.keyboard.shift.pressed():
-                    self.start_shift_dragging_nodes()
-
-            # if we hit vertices, select them
-            elif len(pressed_vertices) != 0:
-                for i, pressed_vertex in enumerate(pressed_vertices):
-                    self.select(pressed_vertex)
-
-            # else de-select when shift is not pressed
-            elif not self.keyboard.shift.pressed():
+            # if shift is not pressed, select the pressed thing immediately and deselect
+            # everything else
+            if not self.keyboard.shift.pressed():
                 self.graph.deselect_all()
 
-        elif key is self.mouse.right:
+                # also start the drag if it's a node
+                if pressed_node is not None:
+                    self.select(pressed_node)
+                    pressed_node.start_drag(self.mouse.get_position())
+
+                for vertex in pressed_vertices:
+                    self.select(vertex)
+
+            # else just start regular drag on the pressed node
+            else:
+                if pressed_node is not None:
+                    pressed_node.start_drag(self.mouse.get_position())
+                    self.start_shift_dragging_nodes([pressed_node])
+
+        if key is self.mouse.right:
             selected = self.graph.get_selected_nodes()
 
             if pressed_node is None:
@@ -354,17 +378,6 @@ class Canvas(QWidget):
         """Rotate about the average of selected nodes by the angle."""
         for node in nodes:
             node.set_position(node.get_position().rotated(angle, pivot), True)
-
-    def toggle(self, obj: Union[DrawableNode, DrawableVertex]):
-        """Select the given node/vertex."""
-        # only select one when shift is not pressed
-        if not self.keyboard.shift.pressed():
-            self.graph.deselect_all()
-
-        if obj.is_selected():
-            self.graph.deselect(obj)
-        else:
-            self.graph.select(obj)
 
     def select(self, obj: Union[DrawableNode, DrawableVertex]):
         """Select the given node/vertex."""
@@ -534,11 +547,7 @@ class Grafatko(QMainWindow):
         layout = QGridLayout()
 
         ## Widgets
-        self.directed_checkbox = QCheckBox(
-            "directed",
-            self,
-            toggled=self.set_directed
-        )
+        self.directed_checkbox = QCheckBox("directed", self, toggled=self.set_directed)
 
         self.weighted_checkbox = QCheckBox(
             "weighted",

@@ -9,7 +9,7 @@ Then you can simply run the `grafatko` command from a terminal of your choice.
 
 ---
 
-Another way to run grafátko (albeit a little more difficult) is to first clone the repository, go to the base directory and run the project as a Python module:
+Another way to run Grafátko (albeit a little more difficult) is to first clone the repository, go to the base directory and run the project as a Python module:
 
 ```console
 xiaoxiae@thinkpad ~> git clone https://github.com/xiaoxiae/Grafatko.git
@@ -22,9 +22,14 @@ xiaoxiae@thinkpad ~> python -m grafatko.__init__
 
 ### Mouse
 - **right button** creates new nodes/vertices
+	- **+ shift** -- doesn't deselect the currently selected nodes:
 - **left button** selects and drags nodes/vertices around the screen
-- **middle button** pans the canvas
-- **mouse wheel** zooms/rotates nodes about, depending on whether shift is pressed
+	- if held, drags nodes along with the mouse
+	- **+ shift** -- toggles selection on nodes/vertices
+		- if held, moves the entire graph component
+- **middle button** pans
+- **mouse wheel** zooms
+	- **+ shift** rotates nodes about the currently selected ones
 
 ### Keyboard
 - **r** toggles 'tree mode' for smoother visualisation of trees

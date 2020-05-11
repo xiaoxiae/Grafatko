@@ -1,15 +1,16 @@
 """A class for keeping track of information regarding the mouse and the keyboard."""
 
 from PyQt5.QtCore import Qt
+from dataclasses import dataclass
 
 from grafatko.utilities import *
 
 
+@dataclass
 class Pressable:
     """An object that can be pressed and released."""
 
-    def __init__(self):
-        self.state: bool = False
+    state: bool = False
 
     def pressed(self):
         """Return True if the Pressable is currently pressed."""
@@ -70,8 +71,9 @@ class Mouse(PressableCollection):
     def __init__(self, transformation: Transformation):
         self.transformation = transformation  # current canvas transformation
 
-        self.position: Optional[Vector] = None  # position on canvas
-        self.prev_position: Optional[Vector] = None  # previous position on canvas
+        self.position: Optional[Vector] = None
+        self.prev_position: Optional[Vector] = None
+        self.last_pressed_position: Optional[Vector] = None
 
         super().__init__(
             [
@@ -85,6 +87,10 @@ class Mouse(PressableCollection):
         self.prev_position = self.position
         self.position = Vector(event.pos().x(), event.pos().y())
 
+    def current_last_distance(self):
+        """Return the distance between the current mouse pos and last pressed pos."""
+        return self.get_position().distance(self.last_pressed_position)
+
     def get_previous_position(self):
         """Get the previous mouse position."""
         if self.prev_position is not None:
@@ -97,7 +103,13 @@ class Mouse(PressableCollection):
 
     def pressed_event(self, event):
         self.moved_event(event)
-        return self.update_state(event.button(), True)
+        key = self.update_state(event.button(), True)
+
+        # sneakily update the last pressed position before returning the key
+        if key is self.left:
+            self.last_pressed_position = self.get_position()
+
+        return key
 
     def released_event(self, event):
         self.moved_event(event)

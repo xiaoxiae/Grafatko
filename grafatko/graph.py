@@ -812,6 +812,13 @@ class DrawableGraph(Drawable, Graph):
         """Deselect the specified node/vertex."""
         self.__change_selected_value(obj, False)
 
+    def toggle(self, obj: Union[DrawableNode, DrawawbleVertex]):
+        """Toggle selection on the specified node/vertex."""
+        if obj.is_selected():
+            self.deselect(obj)
+        else:
+            self.select(obj)
+
     def __change_selected_value(self, obj, value):
         obj.set_selected(value)
 
@@ -832,6 +839,10 @@ class DrawableGraph(Drawable, Graph):
     def get_selected_objects(self) -> List[Union[DrawableNode, DrawableVertex]]:
         """Return selected nodes and vertices."""
         return self.get_selected_nodes() + self.get_selected_vertices()
+
+    def get_dragged_nodes(self) -> List[DrawableNode]:
+        """Return a list of nodes that are currently being dragged."""
+        return [n for n in self.get_nodes() if n.is_dragged()]
 
     def set_show_labels(self, value: bool):
         """Whether to show the node labels or not."""
