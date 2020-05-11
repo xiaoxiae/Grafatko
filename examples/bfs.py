@@ -23,7 +23,7 @@ def bfs(graph: DrawableGraph):
     queue = selected  # BFS queue
     state: Dict[DrawableNode, State] = {}
 
-    graph.set_default_animation_duration(100)
+    graph.set_default_animation_duration(300)
 
     # set node states and change colors accordingly
     for n in graph.get_nodes():

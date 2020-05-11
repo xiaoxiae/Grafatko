@@ -20,7 +20,7 @@ def dijkstra(graph: DrawableGraph):
     assert graph.is_weighted(), "Graph must be weighted."
     assert len(selected) != 0, "Some nodes must be selected."
 
-    graph.set_default_animation_duration(1000)
+    graph.set_default_animation_duration(300)
 
     # set the color and the label of the nodes
     distance: Dict[DrawableNode, float] = {}
