@@ -9,6 +9,7 @@ from dataclasses import *
 
 Number = Union[int, float, complex]
 
+
 class Vector:
     """A Python implementation of a vector class and some of its operations."""
 
@@ -134,8 +135,9 @@ class Transformation:
         return point * self.scale + self.translation
 
     def center(self, point: Vector, center_smoothness: float = 0.3):
-        """Center the transformation on the given point. The closer to 1 the value of
-        center_smoothness, the faster the centering is."""
+        """Move the transformation center closer to the given point. The closer to 1
+        the value of center_smoothness, the faster the centering is. At 1, it is
+        instant."""
         middle = self.apply(Vector(self.canvas.width(), self.canvas.height()) / 2)
         self.translation = self.inverse((middle - point) * center_smoothness)
 

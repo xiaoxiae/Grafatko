@@ -296,7 +296,10 @@ class Canvas(QWidget):
                 node.stop_drag()
 
             # toggle if we haven't moved a lot
-            if self.mouse.current_last_distance() <= self.mouse_toggle_radius and self.keyboard.shift.pressed():
+            if (
+                self.mouse.current_last_distance() <= self.mouse_toggle_radius
+                and self.keyboard.shift.pressed()
+            ):
                 if pressed_node is not None:
                     self.graph.toggle(pressed_node)
 
@@ -396,9 +399,10 @@ class Canvas(QWidget):
         """Enable/disable the forces that act on the nodes."""
         self.forces = value
 
-    def import_graph(self):
-        """Prompt a graph (from file) import."""
-        path = QFileDialog.getOpenFileName()[0]
+    def import_graph(self, path: str = None):
+        """Either import a graph from the specified file, or prompt it."""
+        if path is None:
+            path = QFileDialog.getOpenFileName()[0]
 
         if path == "":
             return
@@ -482,24 +486,38 @@ class Grafatko(QMainWindow):
     def __init__(self, arguments):
         super().__init__()
 
-        styles.light(QApplication.instance())
+        # build the entire interface
+        self.__create_interface(arguments)
 
-        # Widgets
-        ## Canvas (main widget)
+        self.show()
+
+        # import a graph from the get-go, if it's provided
+        if arguments.import_path is not None:
+            self.canvas.import_graph(arguments.import_path)
+
+        # set to light by default (unless there is an argument to set it to dark)
+        if arguments.dark:
+            styles.dark(QApplication.instance())
+        else:
+            styles.light(QApplication.instance())
+
+    def __create_interface(self, arguments):
+        """A method that creates the entire interface."""
+        # Canvas (main widget)
         self.line_edit = QLineEdit(self)
 
         self.canvas = Canvas(self.line_edit, self, self.update_ui)
         self.canvas.setMinimumSize(100, 200)  # reasonable minimum size
         self.setCentralWidget(self.canvas)
 
-        ## Top menu bar
+        # Top menu bar
         self.menubar = self.menuBar()
 
-        # menu bar separator
+        ## menu bar separator
         self.sep = QAction()
         self.sep.setSeparator(True)
 
-        # file menu
+        ## file menu
         self.file_menu = self.menubar.addMenu("&File")
         self.file_menu.addActions(
             [
@@ -510,13 +528,7 @@ class Grafatko(QMainWindow):
             ]
         )
 
-        # set to light by default (unless there is an argument to set it to dark)
-        if arguments.dark:
-            styles.dark(QApplication.instance())
-        else:
-            styles.light(QApplication.instance())
-
-        # preference menu
+        ## preference menu
         self.preferences_menu = self.menubar.addMenu("&Preferences")
         self.preferences_menu.addAction(
             QAction(
@@ -531,22 +543,49 @@ class Grafatko(QMainWindow):
             )
         )
 
-        # algorithm menu
+        ## algorithm menu
         self.help_menu = self.menubar.addMenu("&Algorithms")
         self.help_menu.addAction(
             QAction("&Run", self, triggered=self.canvas.run_algorithm)
         )
 
-        ## Dock
-        # TODO: shrink after leaving the dock
-        # TODO: disable vertical resizing
+        ## help menu
+        self.help_menu = self.menubar.addMenu("&Help")
+        self.help_menu.addActions(
+            [
+                QAction(
+                    "&About",
+                    self,
+                    triggered=lambda: QMessageBox.information(
+                        self,
+                        "About",
+                        "This application was created as a semester project for a "
+                        "programming class at <a href='https://www.mff.cuni.cz/en'>MFF UK</a> "
+                        "by Tomáš Sláma. It's open source (see the tab below) and licensed "
+                        "under MIT, so do as you please with the code and anything else "
+                        "related to the project.",
+                    ),
+                ),
+                QAction(
+                    "&Source Code",
+                    self,
+                    triggered=partial(
+                        # TODO: make non-blocking
+                        webbrowser.open,
+                        "https://github.com/xiaoxiae/Grafatko",
+                    ),
+                ),
+            ]
+        )
+
+        # dock
         self.dock_menu = QDockWidget("Settings", self)
         self.dock_menu.setAllowedAreas(Qt.BottomDockWidgetArea)
         self.dock_menu.setFeatures(QDockWidget.DockWidgetFloatable)
 
         layout = QGridLayout()
 
-        ## Widgets
+        ## widgets
         self.directed_checkbox = QCheckBox("directed", self, toggled=self.set_directed)
 
         self.weighted_checkbox = QCheckBox(
@@ -606,35 +645,7 @@ class Grafatko(QMainWindow):
             (3, 0, 1, -1): self.line_edit,
         }
 
-        # help menu
-        self.help_menu = self.menubar.addMenu("&Help")
-        self.help_menu.addActions(
-            [
-                QAction(
-                    "&About",
-                    self,
-                    triggered=lambda: QMessageBox.information(
-                        self,
-                        "About",
-                        "This application was created as a semester project for a "
-                        "programming class at <a href='https://www.mff.cuni.cz/en'>MFF UK</a> "
-                        "by Tomáš Sláma. It's open source (see the tab below) and licensed "
-                        "under MIT, so do as you please with the code and anything else "
-                        "related to the project.",
-                    ),
-                ),
-                QAction(
-                    "&Source Code",
-                    self,
-                    triggered=partial(
-                        # TODO: make non-blocking
-                        webbrowser.open,
-                        "https://github.com/xiaoxiae/Grafatko",
-                    ),
-                ),
-            ]
-        )
-
+        ## add all widgets to the dock
         for k, v in widgets.items():
             layout.addWidget(v, *k)
 
@@ -645,13 +656,9 @@ class Grafatko(QMainWindow):
         self.dock_menu.setWidget(self.dock_widget)
         self.addDockWidget(Qt.BottomDockWidgetArea, self.dock_menu)
 
-        # set the UI buttons accordingly
-        self.update_ui()
-
-        # WINDOW SETTINGS
         self.setWindowIcon(QIcon("icon.ico"))
         self.setWindowTitle("Grafátko")
-        self.show()
+        self.update_ui()
 
     def keyPressEvent(self, event):
         self.canvas.keyPressEvent(event)
@@ -695,15 +702,22 @@ def run():
     )
 
     parser.add_argument(
-        "-d",
-        "--dark",
-        dest="dark",
-        action="store_true",
-        help="start the app in dark mode",
+        "-d", "--dark", dest="dark", action="store_true", help="use dark mode",
     )
 
+    parser.add_argument(
+        "-i",
+        "--import",
+        dest="import_path",
+        default=None,
+        metavar="path",
+        help="import a graph",
+    )
+
+    arguments = parser.parse_args()
+
     app = QApplication(sys.argv)
-    ex = Grafatko(parser.parse_args())
+    ex = Grafatko(arguments)
     sys.exit(app.exec_())
 
 
