@@ -364,8 +364,11 @@ class Canvas(QWidget):
                 nodes = self.graph.get_weakly_connected(
                     *self.graph.get_selected_nodes()
                 )
-                pivot = Vector.average([n.get_position() for n in selected])
-                self.rotate_about(nodes, delta, pivot)
+
+                # if left mouse is pressed, don't rotate
+                if not self.mouse.left.pressed():
+                    pivot = Vector.average([n.get_position() for n in selected])
+                    self.rotate_about(nodes, delta, pivot)
 
         # zoom on canvas on not shift press
         else:
