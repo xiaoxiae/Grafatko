@@ -355,6 +355,10 @@ class Canvas(QWidget):
 
     def wheelEvent(self, event):
         """Is called when the mouse wheel is turned."""
+        # don't rotate rooted graphs
+        if self.graph.get_root() is not None:
+            return
+
         delta = radians(event.angleDelta().y() / 8)
 
         # rotate nodes on shift press
