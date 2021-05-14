@@ -1,7 +1,7 @@
 # Grafátko [gɾafɑtko]
 An app for creating and visualizing graphs and graph-related algorithms.
 
-![examples](example.png?raw=true "An example of the GUI")
+![](https://raw.githubusercontent.com/xiaoxiae/Grafatko/master/example.png)
 
 ## Running Grafátko
 First, install the app by running `pip install grafatko`.
